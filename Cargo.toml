@@ -1,0 +1,20 @@
+[package]
+name = "poisson"
+version = "0.1.0"
+authors = ["WaDelma <>"]
+description = "Poisson-disk distribution generator."
+repository = "https://github.com/WaDelma/poisson"
+readme = "README.md"
+keywords = [ "poisson" ]
+license = "MIT"
+
+[dependencies]
+rand = "0.3.8"
+nalgebra = "0.2.14"
+
+[dependencies.image]
+version = "0.3.9"
+optional = true
+
+[features]
+visualise = ["image"]
