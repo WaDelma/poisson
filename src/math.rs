@@ -66,14 +66,14 @@ impl PartialEq for Rect {
     }
 }
 
-pub enum Intercection {
+pub enum Intersection {
     Out,
     Over,
     In,
 }
 
 #[inline]
-pub fn test_intercection(rect: Rect, sample: Vec2, radius: f64) -> Intercection {
+pub fn test_intersection(rect: Rect, sample: Vec2, radius: f64) -> Intersection {
     let radius2 = radius * radius;
     let dims = 2usize;
     let mut min = 0f64;
@@ -85,11 +85,11 @@ pub fn test_intercection(rect: Rect, sample: Vec2, radius: f64) -> Intercection 
         let dmin = cur_min - cur_sample;
         if dmin > 0f64 {
             if dmin > radius {
-                return Intercection::Out;
+                return Intersection::Out;
             }
             min += dmin * dmin;
             if min > radius2 {
-                return Intercection::Out;
+                return Intersection::Out;
             }
             let temp_max = cur_max - cur_sample;
             max += temp_max * temp_max;
@@ -98,11 +98,11 @@ pub fn test_intercection(rect: Rect, sample: Vec2, radius: f64) -> Intercection 
         let dmin = cur_sample - cur_max;
         if dmin > 0f64 {
             if dmin > radius {
-                return Intercection::Out;
+                return Intersection::Out;
             }
             min += dmin * dmin;
             if min > radius2 {
-                return Intercection::Out;
+                return Intersection::Out;
             }
             let temp_max = cur_sample - cur_min;
             max += temp_max * temp_max;
@@ -112,7 +112,7 @@ pub fn test_intercection(rect: Rect, sample: Vec2, radius: f64) -> Intercection 
         max += temp_max * temp_max;
     }
     if max > radius2 {
-        return Intercection::Over;
+        return Intersection::Over;
     }
-    return Intercection::In;
+    return Intersection::In;
 }

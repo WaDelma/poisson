@@ -2,7 +2,7 @@
 //!
 //! Generates distribution of points where:
 //!
-//!    * For each point there is disk of certain radius which doesn't intercect with any disk of any other point
+//!    * For each point there is disk of certain radius which doesn't intersect with any disk of any other point
 //!    * Nodes fill the space uniformly
 //!
 
@@ -21,7 +21,7 @@ use std::mem::drop;
 use std::fmt::{Debug, Formatter};
 use std::fmt::Result as FmtResult;
 
-use math::{Intercection, Rect};
+use math::{Intersection, Rect};
 
 mod math;
 #[cfg(test)]
@@ -131,37 +131,27 @@ impl <R> PoissonDisk<R> where R: Rng {
     }
 
     fn is_sample_valid(&self, node: &Node, sample: Vec2) -> bool {
-        let n = node.0.borrow();
         let diameter = 2f64 * self.radius;
-        for s in &n.samples {
-            let diff = *s - sample;
-            if diff.sqnorm() < diameter * diameter {
-                return false;
-            }
-        }
-        true
-	}
+        let d2 = diameter * diameter;
+        node.0.borrow().samples.iter().all(|s| (*s - sample).sqnorm() >= d2)
+    }
 
     fn subdivide(&self, node: &Node) -> f64 {
 		let mut delta = 0f64;
+        let mut childs = node.create_childs();
         let mut borrow = node.0.borrow_mut();
-    	let mut childs = vec![
-        Node::new(Some(node.clone()), Rect::new(borrow.calc_min(0, 0), borrow.calc_max(0, 0))),
-        Node::new(Some(node.clone()), Rect::new(borrow.calc_min(0, 1), borrow.calc_max(0, 1))),
-        Node::new(Some(node.clone()), Rect::new(borrow.calc_min(1, 0), borrow.calc_max(1, 0))),
-        Node::new(Some(node.clone()), Rect::new(borrow.calc_min(1, 1), borrow.calc_max(1, 1)))];
         childs.retain(|child| {
             let mut child_borrow = child.0.borrow_mut();
         	for sample in &borrow.samples {
-                match math::test_intercection(child_borrow.rect, *sample, 2f64 * self.radius) {
-                    Intercection::Over => {
+                match math::test_intersection(child_borrow.rect, *sample, 2f64 * self.radius) {
+                    Intersection::Over => {
                         child_borrow.samples.push(*sample);
                     }
-                    Intercection::In => {
+                    Intersection::In => {
     			        delta += child_borrow.area;
     				    return false;
                     }
-                    Intercection::Out => {}
+                    Intersection::Out => {}
                 }
 		    }
             true
@@ -173,16 +163,16 @@ impl <R> PoissonDisk<R> where R: Rng {
 
 	fn update(&self, node: &Node, sample: Vec2) -> f64 {
         let mut borrow = node.0.borrow_mut();
-        match math::test_intercection(borrow.rect, sample, 2f64 * self.radius) {
-            Intercection::Out => {
+        match math::test_intersection(borrow.rect, sample, 2f64 * self.radius) {
+            Intersection::Out => {
                 0f64
             }
-            Intercection::In => {
+            Intersection::In => {
                 // prune node and all its descendants
                 // node.discard(); TODO
                 borrow.area
             }
-            Intercection::Over => {
+            Intersection::Over => {
                 if borrow.is_leaf() {
         			borrow.samples.push(sample);
         			return 0f64;
@@ -249,6 +239,15 @@ impl Node {
             }
         }
     }
+
+    fn create_childs(&self) -> Vec<Node> {
+        let borrow = self.0.borrow();
+        vec![
+        Node::new(Some(self.clone()), borrow.child_rect(0, 0)),
+        Node::new(Some(self.clone()), borrow.child_rect(0, 1)),
+        Node::new(Some(self.clone()), borrow.child_rect(1, 0)),
+        Node::new(Some(self.clone()), borrow.child_rect(1, 1))]
+    }
 }
 
 impl PartialEq for InnerNode {
@@ -266,28 +265,32 @@ impl InnerNode {
         self.childs.is_empty()
     }
 
-    fn calc_min(&self, quadrant_x: u32, quadrant_y: u32) -> Vec2 {
+    fn child_rect(&self, x: u32, y: u32) -> Rect {
+        Rect::new(self.calc_min(x, y), self.calc_max(x, y))
+    }
+
+    fn calc_min(&self, x: u32, y: u32) -> Vec2 {
         Vec2::new(
-            if quadrant_x == 0 {
+            if x == 0 {
                 self.rect.min.x
             }else{
                 self.rect.center_x()
             },
-            if quadrant_y == 0 {
+            if y == 0 {
                 self.rect.min.y
             }else{
                 self.rect.center_y()
             })
     }
 
-    fn calc_max(&self, quadrant_x: u32, quadrant_y: u32) -> Vec2 {
+    fn calc_max(&self, x: u32, y: u32) -> Vec2 {
         Vec2::new(
-            if quadrant_x == 0 {
+            if x == 0 {
                 self.rect.center_x()
             }else{
                 self.rect.max.x
             },
-            if quadrant_y == 0 {
+            if y == 0 {
                 self.rect.center_y()
             }else{
                 self.rect.max.y
