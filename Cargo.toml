@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["WaDelma <>"]
 description = "Poisson-disk distribution generator."
 repository = "https://github.com/WaDelma/poisson"
+documentation = "https://WaDelma.github.io/poisson/"
 readme = "README.md"
 keywords = [ "poisson" ]
 license = "MIT"

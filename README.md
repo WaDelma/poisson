@@ -5,6 +5,7 @@
 **poisson** is used through struct PoissonDisk. 
 Function calc_radius can be used to calculate radius based on amount of samples wanted and relative radius.
 
+Documentation is [here](https://WaDelma.github.io/poisson/)  
 
 # TODO
    * Generalise to arbitary dimensions
