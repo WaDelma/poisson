@@ -1,5 +1,7 @@
-# poisson
+# poisson 
 **poisson** is library for generating 2d poisson-disk distributions.
+
+[![Build Status](https://travis-ci.org/WaDelma/poisson.svg?branch=master)](https://travis-ci.org/WaDelma/poisson)   
 
 ## Using **poisson**
 **poisson** is used through struct PoissonDisk. 
