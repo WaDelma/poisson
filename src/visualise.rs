@@ -50,6 +50,46 @@ fn visualise_8th_of_max_radius() {
     visualise(&vecs, radius, size, &Path::new("poisson_8th.png"));
 }
 
+#[test]
+fn visualise_64th_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 64f64;
+    let size = 2 << 9;
+    let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius);
+    let mut vecs = vec![];
+    poisson.create(&mut vecs);
+    visualise(&vecs, radius, size, &Path::new("poisson_64th_periodic.png"));
+}
+
+#[test]
+fn visualise_32th_of_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 32f64;
+    let size = 2 << 9;
+    let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius);
+    let mut vecs = vec![];
+    poisson.create(&mut vecs);
+    visualise(&vecs, radius, size, &Path::new("poisson_32th_periodic.png"));
+}
+
+#[test]
+fn visualise_16th_of_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 16f64;
+    let size = 2 << 9;
+    let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius);
+    let mut vecs = vec![];
+    poisson.create(&mut vecs);
+    visualise(&vecs, radius, size, &Path::new("poisson_16th_periodic.png"));
+}
+
+#[test]
+fn visualise_8th_of_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 8f64;
+    let size = 2 << 9;
+    let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius);
+    let mut vecs = vec![];
+    poisson.create(&mut vecs);
+    visualise(&vecs, radius, size, &Path::new("poisson_8th_periodic.png"));
+}
+
 
 fn visualise(vecs: &Vec<Vec2>, radius: f64, size: u32, path: &Path) {
     let r = (radius * size as f64) as i32;

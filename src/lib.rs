@@ -71,6 +71,7 @@ pub fn calc_radius(points: u32, relative_radius: f64) -> f64 {
 pub struct PoissonDisk<R> where R: Rng {
     rand: R,
     radius: f64,
+    periodicity: bool,
 }
 
 impl <R> PoissonDisk<R> where R: Rng {
@@ -79,7 +80,28 @@ impl <R> PoissonDisk<R> where R: Rng {
     pub fn new(rand: R, radius: f64) -> PoissonDisk<R> {
         assert!(0f64 < radius);
         assert!(radius <= (2f64.sqrt() / 2f64));
-        PoissonDisk{rand: rand, radius: radius}
+        PoissonDisk{rand: rand, radius: radius, periodicity: false}
+    }
+
+
+    /// Creates new peridiotic PoissonDisk with random generator, radius specified.
+    /// Radius should be ]0, √2 / 2]
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// extern crate rand;
+    /// extern crate poisson;
+    ///
+    /// let mut poisson = poisson::PoissonDisk::perioditic(rand::weak_rng(), 0.1);
+    /// let mut vecs = vec![];
+    /// poisson.create(&mut vecs);
+    /// println!("{:?}", vecs);
+    /// ```
+    pub fn perioditic(rand: R, radius: f64) -> PoissonDisk<R> {
+        assert!(0f64 < radius);
+        assert!(radius <= (2f64.sqrt() / 2f64));
+        PoissonDisk{rand: rand, radius: radius, periodicity: true}
     }
 
     /// Populates given vector with poisson-disk distribution [0, 1]²
@@ -90,7 +112,15 @@ impl <R> PoissonDisk<R> where R: Rng {
             let (area, sample) = self.generate(&tree, 0);
             tree.reduce(area);
             if let Some(s) = sample {
-                tree.reduce(self.update(&tree, s));
+                if self.periodicity {
+                    for x in &[-1, 0, 1] {
+                        for y in &[-1, 0, 1] {
+                            tree.reduce(self.update(&tree, s + Vec2::new(*x as f64, *y as f64)));
+                        }
+                    }
+                } else {
+                    tree.reduce(self.update(&tree, s));
+                }
                 points.push(s);
             }
         }

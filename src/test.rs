@@ -9,37 +9,71 @@ pub type Vec2 = naVec2<f64>;
 #[test]
 fn test_max_radius() {
     let radius = 2f64.sqrt() / 2f64;
-    test_with_seeds(radius, 1600);
+    test_with_seeds(radius, 1600, false);
 }
 
 #[test]
 fn test_2nd_max_radius() {
     let radius = 2f64.sqrt() / 2f64 / 2f64;
-    test_with_seeds(radius, 800);
+    test_with_seeds(radius, 800, false);
 }
 
 #[test]
 fn test_4th_of_max_radius() {
     let radius = 2f64.sqrt() / 2f64 / 4f64;
-    test_with_seeds(radius, 400);
+    test_with_seeds(radius, 400, false);
 }
 
 #[test]
 fn test_8th_of_max_radius() {
     let radius = 2f64.sqrt() / 2f64 / 8f64;
-    test_with_seeds(radius, 200);
+    test_with_seeds(radius, 200, false);
 }
 
 #[test]
 fn test_16th_of_max_radius() {
     let radius = 2f64.sqrt() / 2f64 / 16f64;
-    test_with_seeds(radius, 100);
+    test_with_seeds(radius, 100, false);
 }
 
-fn test_with_seeds(radius: f64, seeds: u32) {
+#[test]
+fn test_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64;
+    test_with_seeds(radius, 1600, true);
+}
+
+#[test]
+fn test_2nd_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 2f64;
+    test_with_seeds(radius, 800, true);
+}
+
+#[test]
+fn test_4th_of_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 4f64;
+    test_with_seeds(radius, 400, true);
+}
+
+#[test]
+fn test_8th_of_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 8f64;
+    test_with_seeds(radius, 200, true);
+}
+
+#[test]
+fn test_16th_of_max_radius_periodic() {
+    let radius = 2f64.sqrt() / 2f64 / 16f64;
+    test_with_seeds(radius, 100, true);
+}
+
+fn test_with_seeds(radius: f64, seeds: u32, periodicity: bool) {
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson = PoissonDisk::new(rand, radius);
+        let mut poisson = if periodicity {
+            PoissonDisk::perioditic(rand, radius)
+        } else {
+            PoissonDisk::new(rand, radius)
+        };
         let mut vecs = vec![];
         poisson.create(&mut vecs);
         assert_legal_poisson(&vecs, radius);
