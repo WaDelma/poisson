@@ -1,4 +1,4 @@
-use ::PoissonDisk;
+use ::{PoissonDisk, Sample};
 
 use rand::{SeedableRng, XorShiftRng};
 
@@ -151,7 +151,7 @@ fn test_with_seeds(radius: f64, seeds: u32, periodicity: bool) {
     test_with_seeds_prefill(radius, seeds, periodicity, &mut |_, _|{});
 }
 
-fn test_with_seeds_prefill<F>(radius: f64, seeds: u32, periodicity: bool, filler: &mut F) where F: FnMut(&mut Vec<Vec2>, u32) {
+fn test_with_seeds_prefill<F>(radius: f64, seeds: u32, periodicity: bool, filler: &mut F) where F: FnMut(&mut Vec<Sample>, u32) {
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = if periodicity {
@@ -175,19 +175,20 @@ fn test_with_seeds_prefill<F>(radius: f64, seeds: u32, periodicity: bool, filler
         } else {
             vecs
         };
-        assert_legal_poisson(&vecs, radius);
+        assert_legal_poisson(&vecs);
     }
 }
 
-fn assert_legal_poisson(vecs: &Vec<Vec2>, radius: f64) {
+fn assert_legal_poisson(vecs: &Vec<Sample>) {
     for &v1 in vecs {
         for &v2 in vecs {
-            if v1 == v2 {
+            if v1.pos == v2.pos {
                 continue;
             }
-            let diff = v1 - v2;
+            let diff = v1.pos - v2.pos;
             let dist = diff.norm();
-            assert!(dist >= 2f64 * radius, "Poisson-disk distribution requirement not met: There exists 2 vectors with distance to each other of {} which is smaller than smallest allowed one {}. The vectors: [{:?}, {:?}]", dist, 2f64 * radius, v1, v2);
+            let allowed_dist = v1.get_radius() + v2.get_radius();
+            assert!(dist >= allowed_dist, "Poisson-disk distribution requirement not met: There exists 2 vectors with distance to each other of {} which is smaller than smallest allowed one {}. The samples: [{:?}, {:?}]", dist, allowed_dist, v1, v2);
         }
     }
 }

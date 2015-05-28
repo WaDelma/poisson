@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::{Rand, Rng};
 
 use na::Vec2 as naVec2;
 pub type Vec2 = naVec2<f64>;
@@ -46,8 +46,8 @@ impl Rect {
     #[inline]
     pub fn random_point_inside<F>(&self, rand: &mut F) -> Vec2 where F: Rng {
         Vec2::new(
-            self.min.x + rand.gen::<f64>() * self.width(),
-            self.min.y + rand.gen::<f64>() * self.height()
+            f64::rand(rand).mul_add(self.width(), self.min.x),
+            f64::rand(rand).mul_add(self.height(), self.min.y)
         )
     }
 }

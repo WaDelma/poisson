@@ -7,7 +7,7 @@
 //!
 
 extern crate rand;
-use rand::Rng;
+use rand::{Rand, Rng};
 
 extern crate nalgebra as na;
 use na::Norm;
@@ -20,6 +20,7 @@ use std::cmp::PartialEq;
 use std::mem::drop;
 use std::fmt::{Debug, Formatter};
 use std::fmt::Result as FmtResult;
+use std::ops::Add;
 
 use math::{Intersection, Rect};
 
@@ -105,7 +106,7 @@ impl <R> PoissonDisk<R> where R: Rng {
     }
 
     /// Populates given vector with poisson-disk distribution [0, 1]²
-    pub fn create(&mut self, points: &mut Vec<Vec2>) {
+    pub fn create(&mut self, points: &mut Vec<Sample>) {
         let tree = Node::new(None, Rect::new(Vec2::new(0f64, 0f64), Vec2::new(1f64, 1f64)));
         for p in points.iter() {
             self.update_with_periodicity(&tree, *p);
@@ -120,11 +121,11 @@ impl <R> PoissonDisk<R> where R: Rng {
         }
     }
 
-    fn generate(&mut self, node: &Node, depth: u32) -> (f64, Option<Vec2>) {
+    fn generate(&mut self, node: &Node, depth: u32) -> (f64, Option<Sample>) {
         let borrow = node.0.borrow();
         if borrow.is_leaf() {
-            let sample = borrow.rect.random_point_inside(&mut self.rand);
-            if self.is_sample_valid(node, sample) {
+            let sample = Sample{pos: borrow.rect.random_point_inside(&mut self.rand), radius: self.radius};
+            if borrow.is_sample_valid(sample) {
                 (0f64, Some(sample))
             }else if depth < MAX_DEPTH {
                 drop(borrow);
@@ -143,7 +144,7 @@ impl <R> PoissonDisk<R> where R: Rng {
 
     fn choose_random_child(&mut self, node: &Node) -> Node {
         let mut borrow = node.0.borrow_mut();
-        let random_limit = self.rand.gen::<f64>() * borrow.area;
+        let random_limit = f64::rand(&mut self.rand) * borrow.area;
         let mut area_counter = 0f64;
         for child in &mut borrow.childs {
             area_counter += child.0.borrow().area;
@@ -154,12 +155,6 @@ impl <R> PoissonDisk<R> where R: Rng {
         unreachable!("Either areas of child nodes combined doesn't equal area of the node or random doesn't generate number [0, 1[. This should never happen.");
     }
 
-    fn is_sample_valid(&self, node: &Node, sample: Vec2) -> bool {
-        let diameter = 2f64 * self.radius;
-        let d2 = diameter * diameter;
-        node.0.borrow().samples.iter().all(|s| (*s - sample).sqnorm() >= d2)
-    }
-
     fn subdivide(&self, node: &Node) -> f64 {
 		let mut delta = 0f64;
         let mut childs = node.create_childs();
@@ -167,7 +162,7 @@ impl <R> PoissonDisk<R> where R: Rng {
         childs.retain(|child| {
             let mut child_borrow = child.0.borrow_mut();
         	for sample in &borrow.samples {
-                match math::test_intersection(child_borrow.rect, *sample, 2f64 * self.radius) {
+                match math::test_intersection(child_borrow.rect, sample.pos, sample.radius + self.radius) {
                     Intersection::Over => {
                         child_borrow.samples.push(*sample);
                     }
@@ -185,7 +180,7 @@ impl <R> PoissonDisk<R> where R: Rng {
 		return delta;
 	}
 
-    fn update_with_periodicity(&self, node: &Node, sample: Vec2) {
+    fn update_with_periodicity(&self, node: &Node, sample: Sample) {
         if self.periodicity {
             for x in &[-1, 0, 1] {
                 for y in &[-1, 0, 1] {
@@ -197,9 +192,9 @@ impl <R> PoissonDisk<R> where R: Rng {
         }
     }
 
-	fn update(&self, node: &Node, sample: Vec2) -> f64 {
+    fn update(&self, node: &Node, sample: Sample) -> f64 {
         let mut borrow = node.0.borrow_mut();
-        match math::test_intersection(borrow.rect, sample, 2f64 * self.radius) {
+        match math::test_intersection(borrow.rect, sample.pos, sample.radius + self.radius) {
             Intersection::Out => {
                 0f64
             }
@@ -210,25 +205,56 @@ impl <R> PoissonDisk<R> where R: Rng {
             }
             Intersection::Over => {
                 if borrow.is_leaf() {
-        			borrow.samples.push(sample);
-        			return 0f64;
-        		}
-        		let mut result = 0f64;
+                    borrow.samples.push(sample);
+                    return 0f64;
+                }
+                let mut result = 0f64;
                 borrow.childs.retain(|child| {
-                	let delta = self.update(child, sample);
+                    let delta = self.update(child, sample);
                     result += delta;
                     let mut child_borrow = child.0.borrow_mut();
-        			if delta < child_borrow.area {
+                    if delta < child_borrow.area {
                         child_borrow.area -= delta;
                         true
-        			} else {
-        				false
-        			}
+                    } else {
+                        false
+                    }
                 });
-        		result
+                result
             }
         }
-	}
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct Sample {
+    pub pos: Vec2,
+    radius: f64,
+}
+
+impl Sample {
+    pub fn new(pos: Vec2, radius: f64) -> Self {
+        assert!(0f64 < radius);
+        assert!(radius <= (2f64.sqrt() / 2f64));
+        Sample{pos: pos, radius: radius}
+    }
+
+    pub fn get_radius(&self) -> f64 {
+        self.radius
+    }
+}
+
+impl Add<Vec2> for Sample {
+    type Output = Sample;
+    fn add(self, other: Vec2) ->  Self::Output {
+        Sample{pos: self.pos + other, .. self}
+    }
+}
+
+impl Debug for Sample {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        write!(f, "{:}:{:?}", self.radius, self.pos)
+    }
 }
 
 #[derive(Clone)]
@@ -237,7 +263,7 @@ struct Node(Rc<RefCell<InnerNode>>);
 struct InnerNode {
     childs: Vec<Node>,
     parent: Option<Node>,
-    samples: Vec<Vec2>,
+    samples: Vec<Sample>,
     rect: Rect,
     area: f64,
 }
@@ -299,6 +325,10 @@ impl InnerNode {
 
     fn is_leaf(&self) -> bool {
         self.childs.is_empty()
+    }
+
+    fn is_sample_valid(&self, sample: Sample) -> bool {
+        self.samples.iter().all(|s| (s.pos - sample.pos).sqnorm() >= (s.radius + sample.radius).powi(2))
     }
 
     fn child_rect(&self, x: u32, y: u32) -> Rect {
