@@ -107,20 +107,14 @@ impl <R> PoissonDisk<R> where R: Rng {
     /// Populates given vector with poisson-disk distribution [0, 1]²
     pub fn create(&mut self, points: &mut Vec<Vec2>) {
         let tree = Node::new(None, Rect::new(Vec2::new(0f64, 0f64), Vec2::new(1f64, 1f64)));
-        //TODO: Fill the tree with points
+        for p in points.iter() {
+            self.update_with_periodicity(&tree, *p);
+        }
         while !tree.0.borrow().is_empty() {
             let (area, sample) = self.generate(&tree, 0);
             tree.reduce(area);
             if let Some(s) = sample {
-                if self.periodicity {
-                    for x in &[-1, 0, 1] {
-                        for y in &[-1, 0, 1] {
-                            tree.reduce(self.update(&tree, s + Vec2::new(*x as f64, *y as f64)));
-                        }
-                    }
-                } else {
-                    tree.reduce(self.update(&tree, s));
-                }
+                self.update_with_periodicity(&tree, s);
                 points.push(s);
             }
         }
@@ -190,6 +184,18 @@ impl <R> PoissonDisk<R> where R: Rng {
 		borrow.samples.clear();
 		return delta;
 	}
+
+    fn update_with_periodicity(&self, node: &Node, sample: Vec2) {
+        if self.periodicity {
+            for x in &[-1, 0, 1] {
+                for y in &[-1, 0, 1] {
+                    node.reduce(self.update(node, sample + Vec2::new(*x as f64, *y as f64)));
+                }
+            }
+        } else {
+            node.reduce(self.update(node, sample));
+        }
+    }
 
 	fn update(&self, node: &Node, sample: Vec2) -> f64 {
         let mut borrow = node.0.borrow_mut();

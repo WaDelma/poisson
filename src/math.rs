@@ -66,6 +66,16 @@ impl PartialEq for Rect {
     }
 }
 
+#[inline]
+pub fn modulo(x: i32, y: i32) -> i32 {
+    let result = x % y;
+    if result < 0 {
+        result + y
+    } else {
+        result
+    }
+}
+
 pub enum Intersection {
     Out,
     Over,
