@@ -66,6 +66,8 @@ impl PartialEq for Rect {
     }
 }
 
+#[cfg(test)]
+#[cfg(feature = "visualise")]
 #[inline]
 pub fn modulo(x: i32, y: i32) -> i32 {
     let result = x % y;

@@ -1,10 +1,66 @@
-use ::{PoissonDisk, Sample};
+use ::{calc_radius, PoissonDisk, Sample};
 
-use rand::{SeedableRng, XorShiftRng};
+use rand::{self, SeedableRng, XorShiftRng};
 
 use na::Norm;
 use na::Vec2 as naVec2;
 pub type Vec2 = naVec2<f64>;
+
+#[test]
+#[should_panic]
+fn test_too_small_radius() {
+    let _ = PoissonDisk::new(rand::weak_rng(), 0.0);
+}
+
+#[test]
+#[should_panic]
+fn test_too_large_radius() {
+    let _ = PoissonDisk::new(rand::weak_rng(), 2f64.sqrt() / 2.0 + 0.0001);
+}
+
+#[test]
+#[should_panic]
+fn test_perioditic_too_small_radius() {
+    let _ = PoissonDisk::perioditic(rand::weak_rng(), 0.0);
+}
+
+#[test]
+#[should_panic]
+fn test_perioditic_too_large_radius() {
+    let _ = PoissonDisk::perioditic(rand::weak_rng(), 0.5);
+}
+
+#[test]
+#[should_panic]
+fn test_calc_radius_too_small_alpha() {
+    calc_radius(1, -0.000001);
+}
+
+#[test]
+#[should_panic]
+fn test_calc_radius_too_small_points() {
+    calc_radius(0, 0.5);
+}
+
+#[test]
+fn test_calc_radius_smallest_alpha_calculates_valid() {
+    let r = calc_radius(1, 0.000001);
+    PoissonDisk::new(rand::weak_rng(), r);
+}
+
+
+#[test]
+fn test_calc_radius_largest_alpha_calculates_valid() {
+    let r = calc_radius(1, 1.0);
+    PoissonDisk::new(rand::weak_rng(), r);
+}
+
+
+#[test]
+#[should_panic]
+fn test_calc_radius_too_large_alpha() {
+    calc_radius(1, 1.000001);
+}
 
 #[test]
 fn test_max_radius() {
@@ -38,7 +94,7 @@ fn test_16th_of_max_radius() {
 
 #[test]
 fn test_max_radius_periodic() {
-    let radius = 2f64.sqrt() / 2f64;
+    let radius = 0.499999999;
     test_with_seeds(radius, 1600, true);
 }
 
@@ -111,7 +167,7 @@ fn test_2th_of_max_radius_prefilled_with_max_radius_periodic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill(radius / 2f64, 800, true, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
-            let mut poisson = PoissonDisk::perioditic(rand, radius);
+            let mut poisson = PoissonDisk::perioditic(rand, 0.499999999);
             poisson.create(v);
         });
 }
@@ -164,10 +220,10 @@ fn test_with_seeds_prefill<F>(radius: f64, seeds: u32, periodicity: bool, filler
         poisson.create(&mut vecs);
         let vecs = if periodicity {
             let mut vecs2 = vec![];
-            for x in &[-1, 0, 1] {
-                for y in &[-1, 0, 1] {
+            for x in &[-1.0, 0.0, 1.0] {
+                for y in &[-1.0, 0.0, 1.0] {
                     for v in &vecs {
-                        vecs2.push(*v + Vec2::new(*x as f64, *y as f64));
+                        vecs2.push(*v + Vec2::new(*x, *y));
                     }
                 }
             }

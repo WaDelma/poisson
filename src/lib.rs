@@ -35,7 +35,8 @@ mod visualise;
 const MAX_DEPTH: u32 = 1074;
 
 /// Calculates approximately needed radius from amount of points wanted and relative radius specified.
-/// Relative radius should be [0, 1].
+/// Points should be larger than 0.
+/// Relative radius should be ]0, 1].
 ///
 /// # Example
 ///
@@ -50,6 +51,7 @@ const MAX_DEPTH: u32 = 1074;
 /// println!("{:?}", vecs);
 /// ```
 pub fn calc_radius(points: u32, relative_radius: f64) -> f64 {
+    assert!(0 < points);
     assert!(0f64 <= relative_radius);
     assert!(relative_radius <= 1f64);
     return relative_radius / (2f64 * 3f64.sqrt() * points as f64).sqrt();
@@ -86,7 +88,7 @@ impl <R> PoissonDisk<R> where R: Rng {
 
 
     /// Creates new peridiotic PoissonDisk with random generator, radius specified.
-    /// Radius should be ]0, √2 / 2]
+    /// Radius should be ]0, 0.5[
     ///
     /// # Examples
     ///
@@ -101,11 +103,13 @@ impl <R> PoissonDisk<R> where R: Rng {
     /// ```
     pub fn perioditic(rand: R, radius: f64) -> PoissonDisk<R> {
         assert!(0f64 < radius);
-        assert!(radius <= (2f64.sqrt() / 2f64));
+        assert!(radius < 0.5);
         PoissonDisk{rand: rand, radius: radius, periodicity: true}
     }
 
     /// Populates given vector with poisson-disk distribution [0, 1]²
+    /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
+    /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
     pub fn create(&mut self, points: &mut Vec<Sample>) {
         let tree = Node::new(None, Rect::new(Vec2::new(0f64, 0f64), Vec2::new(1f64, 1f64)));
         for p in points.iter() {
@@ -124,7 +128,7 @@ impl <R> PoissonDisk<R> where R: Rng {
     fn generate(&mut self, node: &Node, depth: u32) -> (f64, Option<Sample>) {
         let borrow = node.0.borrow();
         if borrow.is_leaf() {
-            let sample = Sample{pos: borrow.rect.random_point_inside(&mut self.rand), radius: self.radius};
+            let sample = Sample::new(borrow.rect.random_point_inside(&mut self.rand), self.radius);
             if borrow.is_sample_valid(sample) {
                 (0f64, Some(sample))
             }else if depth < MAX_DEPTH {
@@ -182,9 +186,9 @@ impl <R> PoissonDisk<R> where R: Rng {
 
     fn update_with_periodicity(&self, node: &Node, sample: Sample) {
         if self.periodicity {
-            for x in &[-1, 0, 1] {
-                for y in &[-1, 0, 1] {
-                    node.reduce(self.update(node, sample + Vec2::new(*x as f64, *y as f64)));
+            for x in &[-1.0, 0.0, 1.0] {
+                for y in &[-1.0, 0.0, 1.0] {
+                    node.reduce(self.update(node, sample + Vec2::new(*x, *y)));
                 }
             }
         } else {
@@ -199,8 +203,6 @@ impl <R> PoissonDisk<R> where R: Rng {
                 0f64
             }
             Intersection::In => {
-                // prune node and all its descendants
-                // node.discard(); TODO
                 borrow.area
             }
             Intersection::Over => {
@@ -234,8 +236,6 @@ pub struct Sample {
 
 impl Sample {
     pub fn new(pos: Vec2, radius: f64) -> Self {
-        assert!(0f64 < radius);
-        assert!(radius <= (2f64.sqrt() / 2f64));
         Sample{pos: pos, radius: radius}
     }
 
