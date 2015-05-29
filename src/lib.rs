@@ -228,6 +228,7 @@ impl <R> PoissonDisk<R> where R: Rng {
     }
 }
 
+/// Describes position of sample and radius of disk around it.
 #[derive(Clone, Copy)]
 pub struct Sample {
     pub pos: Vec2,

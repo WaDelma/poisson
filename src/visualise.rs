@@ -142,7 +142,7 @@ fn visualise_2th_of_max_radius_periodic() {
 
 #[test]
 fn visualise_max_radius_periodic() {
-    let radius = 2f64.sqrt() / 2f64;
+    let radius = 0.499999;
     let size = 2 << 9;
     let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius);
     let mut samples = vec![];
@@ -346,7 +346,7 @@ fn visualise_perioditic_2th_of_max_radius_prefilled_with_max_radius() {
     let size = 2 << 9;
     let mut samples = vec![];
 
-    let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius);
+    let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), 0.499999);
     poisson.create(&mut samples);
 
     let mut poisson = PoissonDisk::perioditic(rand::weak_rng(), radius / 2f64);

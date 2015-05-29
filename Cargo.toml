@@ -11,10 +11,10 @@ license = "MIT"
 
 [dependencies]
 rand = "0.3.8"
-nalgebra = "0.2.14"
+nalgebra = "0.2.15"
 
 [dependencies.image]
-version = "0.3.9"
+version = "0.3.10"
 optional = true
 
 [features]
