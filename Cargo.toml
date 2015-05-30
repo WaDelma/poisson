@@ -12,10 +12,8 @@ license = "MIT"
 [dependencies]
 rand = "0.3.8"
 nalgebra = "0.2.15"
-
-[dependencies.image]
-version = "0.3.10"
-optional = true
+num = "0.1.24"
 
 [features]
-visualise = ["image"]
+no2d = []
+no3d = []

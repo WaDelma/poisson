@@ -9,10 +9,28 @@
 extern crate rand;
 use rand::{Rand, Rng};
 
+extern crate num;
+use num::{Zero, One};
+
 extern crate nalgebra as na;
-use na::Norm;
+use na::{Dim, Norm};
 use na::Vec2 as naVec2;
 pub type Vec2 = naVec2<f64>;
+pub trait VecLike<T>:
+    Index<usize, Output = f64> +
+    IndexMut<usize, Output = f64> +
+    Dim +
+    Add<Output = T> +
+    Sub<Output = T> +
+    Norm<f64> +
+    PartialEq +
+    Div<f64, Output = T> +
+    Zero +
+    One +
+    Copy +
+    Clone +
+    Debug {}
+impl<T: Index<usize, Output = f64> + IndexMut<usize, Output = f64> + Dim + Add<Output = T> + Sub<Output = T> + Norm<f64> + PartialEq + Div<f64, Output = T> + Zero + One + Copy + Clone + Debug> VecLike<T> for T {}
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -20,18 +38,15 @@ use std::cmp::PartialEq;
 use std::mem::drop;
 use std::fmt::{Debug, Formatter};
 use std::fmt::Result as FmtResult;
-use std::ops::Add;
+use std::ops::{Sub, Add, Div, Index, IndexMut};
 
-use math::{Intersection, Rect};
+use math::{Intersection, Hypercube};
 
 mod math;
 #[cfg(test)]
 mod test;
-#[cfg(test)]
-#[cfg(feature = "visualise")]
-mod visualise;
 
-// This means that last subdivide gives rects which side is the smallest possible subnormal positive double.
+// This means that last subdivide gives cubes which side is the smallest possible subnormal positive double.
 const MAX_DEPTH: u32 = 1074;
 
 /// Calculates approximately needed radius from amount of points wanted and relative radius specified.
@@ -110,14 +125,14 @@ impl <R> PoissonDisk<R> where R: Rng {
     /// Populates given vector with poisson-disk distribution [0, 1]²
     /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
     /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
-    pub fn create(&mut self, points: &mut Vec<Sample>) {
-        let tree = Node::new(None, Rect::new(Vec2::new(0f64, 0f64), Vec2::new(1f64, 1f64)));
+    pub fn create<T: VecLike<T>>(&mut self, points: &mut Vec<Sample<T>>) {
+        let tree = Node::new(None, Hypercube::new(T::zero(), T::one()));
         for p in points.iter() {
             self.update_with_periodicity(&tree, *p);
         }
         while !tree.0.borrow().is_empty() {
-            let (area, sample) = self.generate(&tree, 0);
-            tree.reduce(area);
+            let (volume, sample) = self.generate(&tree, 0);
+            tree.reduce(volume);
             if let Some(s) = sample {
                 self.update_with_periodicity(&tree, s);
                 points.push(s);
@@ -125,17 +140,17 @@ impl <R> PoissonDisk<R> where R: Rng {
         }
     }
 
-    fn generate(&mut self, node: &Node, depth: u32) -> (f64, Option<Sample>) {
+    fn generate<T: VecLike<T>>(&mut self, node: &Node<T>, depth: u32) -> (f64, Option<Sample<T>>) {
         let borrow = node.0.borrow();
         if borrow.is_leaf() {
-            let sample = Sample::new(borrow.rect.random_point_inside(&mut self.rand), self.radius);
+            let sample = Sample::new(borrow.cube.random_point_inside(&mut self.rand), self.radius);
             if borrow.is_sample_valid(sample) {
                 (0f64, Some(sample))
             }else if depth < MAX_DEPTH {
                 drop(borrow);
                 (self.subdivide(node), None)
             } else {
-                (borrow.area, None)
+                (borrow.volume, None)
             }
         } else {
             drop(borrow);
@@ -146,32 +161,32 @@ impl <R> PoissonDisk<R> where R: Rng {
         }
     }
 
-    fn choose_random_child(&mut self, node: &Node) -> Node {
+    fn choose_random_child<T: VecLike<T>>(&mut self, node: &Node<T>) -> Node<T> {
         let mut borrow = node.0.borrow_mut();
-        let random_limit = f64::rand(&mut self.rand) * borrow.area;
-        let mut area_counter = 0f64;
+        let random_limit = f64::rand(&mut self.rand) * borrow.volume;
+        let mut volume_counter = 0f64;
         for child in &mut borrow.childs {
-            area_counter += child.0.borrow().area;
-            if area_counter > random_limit {
+            volume_counter += child.0.borrow().volume;
+            if volume_counter > random_limit {
                 return child.clone();
             }
         }
-        unreachable!("Either areas of child nodes combined doesn't equal area of the node or random doesn't generate number [0, 1[. This should never happen.");
+        unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen.");
     }
 
-    fn subdivide(&self, node: &Node) -> f64 {
+    fn subdivide<T: VecLike<T>>(&self, node: &Node<T>) -> f64 {
 		let mut delta = 0f64;
         let mut childs = node.create_childs();
         let mut borrow = node.0.borrow_mut();
         childs.retain(|child| {
             let mut child_borrow = child.0.borrow_mut();
         	for sample in &borrow.samples {
-                match math::test_intersection(child_borrow.rect, sample.pos, sample.radius + self.radius) {
+                match math::test_intersection(child_borrow.cube, sample.pos, sample.radius + self.radius) {
                     Intersection::Over => {
                         child_borrow.samples.push(*sample);
                     }
                     Intersection::In => {
-    			        delta += child_borrow.area;
+    			        delta += child_borrow.volume;
     				    return false;
                     }
                     Intersection::Out => {}
@@ -184,39 +199,55 @@ impl <R> PoissonDisk<R> where R: Rng {
 		return delta;
 	}
 
-    fn update_with_periodicity(&self, node: &Node, sample: Sample) {
+    fn update_with_periodicity<T: VecLike<T>>(&self, node: &Node<T>, sample: Sample<T>) {
         if self.periodicity {
-            for x in &[-1.0, 0.0, 1.0] {
-                for y in &[-1.0, 0.0, 1.0] {
-                    node.reduce(self.update(node, sample + Vec2::new(*x, *y)));
+            let dim = T::dim(None);
+            // println!("uwp:");
+            for n in 0..3u64.pow(dim as u32) {
+                let mut t = T::zero();
+                for i in 0..dim {
+                    // println!("{}:{}:{}", n, i, ((n / (1 + i as u64 * 2)) % 3));
+                    t[i] = match (n / (1 + i as u64 * 2)) % 3 {
+                        0 => -1.0,
+                        1 => 0.0,
+                        2 => 1.0,
+                        j @ _ => unreachable!("This shouldn't be possible, but Rust cannot figure it out. Failed with: {}", j)
+                    }
                 }
+                // println!("{:?}", t);
+                node.reduce(self.update(node, sample + t));
             }
+            // for x in &[-1.0, 0.0, 1.0] {
+            //     for y in &[-1.0, 0.0, 1.0] {
+            //         node.reduce(self.update(node, sample + Vec2::new(*x, *y)));
+            //     }
+            // }
         } else {
             node.reduce(self.update(node, sample));
         }
     }
 
-    fn update(&self, node: &Node, sample: Sample) -> f64 {
+    fn update<T: VecLike<T>>(&self, node: &Node<T>, sample: Sample<T>) -> f64 {
         let mut borrow = node.0.borrow_mut();
-        match math::test_intersection(borrow.rect, sample.pos, sample.radius + self.radius) {
+        match math::test_intersection(borrow.cube, sample.pos, sample.radius + self.radius) {
             Intersection::Out => {
-                0f64
+                0.0
             }
             Intersection::In => {
-                borrow.area
+                borrow.volume
             }
             Intersection::Over => {
                 if borrow.is_leaf() {
                     borrow.samples.push(sample);
-                    return 0f64;
+                    return 0.0;
                 }
-                let mut result = 0f64;
+                let mut result = 0.0;
                 borrow.childs.retain(|child| {
                     let delta = self.update(child, sample);
                     result += delta;
                     let mut child_borrow = child.0.borrow_mut();
-                    if delta < child_borrow.area {
-                        child_borrow.area -= delta;
+                    if delta < child_borrow.volume {
+                        child_borrow.volume -= delta;
                         true
                     } else {
                         false
@@ -230,13 +261,13 @@ impl <R> PoissonDisk<R> where R: Rng {
 
 /// Describes position of sample and radius of disk around it.
 #[derive(Clone, Copy)]
-pub struct Sample {
-    pub pos: Vec2,
+pub struct Sample<T: VecLike<T>> {
+    pub pos: T,
     radius: f64,
 }
 
-impl Sample {
-    pub fn new(pos: Vec2, radius: f64) -> Self {
+impl<T: VecLike<T>> Sample<T> {
+    pub fn new(pos: T, radius: f64) -> Self {
         Sample{pos: pos, radius: radius}
     }
 
@@ -245,57 +276,57 @@ impl Sample {
     }
 }
 
-impl Add<Vec2> for Sample {
-    type Output = Sample;
-    fn add(self, other: Vec2) ->  Self::Output {
+impl<T: VecLike<T>> Add<T> for Sample<T> {
+    type Output = Sample<T>;
+    fn add(self, other: T) ->  Self::Output {
         Sample{pos: self.pos + other, .. self}
     }
 }
 
-impl Debug for Sample {
+impl<T: VecLike<T>> Debug for Sample<T> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "{:}:{:?}", self.radius, self.pos)
     }
 }
 
 #[derive(Clone)]
-struct Node(Rc<RefCell<InnerNode>>);
+struct Node<T: VecLike<T>>(Rc<RefCell<InnerNode<T>>>);
 
-struct InnerNode {
-    childs: Vec<Node>,
-    parent: Option<Node>,
-    samples: Vec<Sample>,
-    rect: Rect,
-    area: f64,
+struct InnerNode<T: VecLike<T>> {
+    childs: Vec<Node<T>>,
+    parent: Option<Node<T>>,
+    samples: Vec<Sample<T>>,
+    cube: Hypercube<T>,
+    volume: f64,
 }
 
-impl Debug for Node {
+impl<T: VecLike<T>> Debug for Node<T> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
         write!(f, "{:?}", self.0.borrow().childs)
     }
 }
 
-impl Node {
-    fn new(parent: Option<Node>, rect: Rect) -> Node {
+impl<T: VecLike<T>> Node<T> {
+    fn new(parent: Option<Node<T>>, cube: Hypercube<T>) -> Node<T> {
         Node(Rc::new(RefCell::new(InnerNode{
                 childs: vec![],
                 samples: vec![],
-                area: rect.area(),
-                rect: rect,
+                volume: cube.volume(),
+                cube: cube,
                 parent: parent
             })))
     }
 
     fn reduce(&self, amount: f64) {
         let mut borrow = self.0.borrow_mut();
-        if amount < borrow.area {
-            borrow.area -= amount;
+        if amount < borrow.volume {
+            borrow.volume -= amount;
         } else {
             let parent = borrow.parent.clone();
             borrow.childs.clear();
             borrow.samples.clear();
             borrow.parent = None;
-            borrow.area = 0f64;
+            borrow.volume = 0f64;
             drop(borrow);
             if let Some(p) = parent {
                 p.0.borrow_mut().childs.retain(|a| a.0.borrow().parent.is_some());
@@ -303,64 +334,94 @@ impl Node {
         }
     }
 
-    fn create_childs(&self) -> Vec<Node> {
+    fn create_childs(&self) -> Vec<Node<T>> {
         let borrow = self.0.borrow();
-        vec![
-        Node::new(Some(self.clone()), borrow.child_rect(0, 0)),
-        Node::new(Some(self.clone()), borrow.child_rect(0, 1)),
-        Node::new(Some(self.clone()), borrow.child_rect(1, 0)),
-        Node::new(Some(self.clone()), borrow.child_rect(1, 1))]
+        let mut result = vec![];
+        let dim = T::dim(None);
+        for n in 0..2u64.pow(dim as u32) {
+            result.push(Node::new(Some(self.clone()), borrow.child_cube(n)));
+        }
+        result
+        // vec![
+        // Node::new(Some(self.clone()), borrow.child_cube(0, 0)),
+        // Node::new(Some(self.clone()), borrow.child_cube(0, 1)),
+        // Node::new(Some(self.clone()), borrow.child_cube(1, 0)),
+        // Node::new(Some(self.clone()), borrow.child_cube(1, 1))]
     }
 }
 
-impl PartialEq for InnerNode {
+impl<T: VecLike<T>> PartialEq for InnerNode<T> {
     fn eq(&self, other: &Self) -> bool {
-        self.rect == other.rect
+        self.cube == other.cube
     }
 }
 
-impl InnerNode {
+impl<T: VecLike<T>> InnerNode<T> {
     fn is_empty(&self) -> bool {
-        self.childs.is_empty() && self.samples.is_empty() && self.area == 0f64
+        self.childs.is_empty() && self.samples.is_empty() && self.volume == 0.0
     }
 
     fn is_leaf(&self) -> bool {
         self.childs.is_empty()
     }
 
-    fn is_sample_valid(&self, sample: Sample) -> bool {
+    fn is_sample_valid(&self, sample: Sample<T>) -> bool {
         self.samples.iter().all(|s| (s.pos - sample.pos).sqnorm() >= (s.radius + sample.radius).powi(2))
     }
 
-    fn child_rect(&self, x: u32, y: u32) -> Rect {
-        Rect::new(self.calc_min(x, y), self.calc_max(x, y))
+    fn child_cube(&self, n: u64) -> Hypercube<T> {
+        Hypercube::new(self.calc_min(n), self.calc_max(n))
     }
 
-    fn calc_min(&self, x: u32, y: u32) -> Vec2 {
-        Vec2::new(
-            if x == 0 {
-                self.rect.min.x
-            }else{
-                self.rect.center_x()
-            },
-            if y == 0 {
-                self.rect.min.y
-            }else{
-                self.rect.center_y()
-            })
+    fn calc_min(&self, bits: u64) -> T {
+        let center = self.cube.center();
+        let mut t = T::zero();
+        let dim = T::dim(None);
+        for n in 0..dim {
+            let bit = (bits >> n) & 1;
+            t[n] = if bit == 0 {
+                self.cube.min[n]
+            } else {
+                center[n]
+            };
+        }
+        t
+        // Vec2::new(
+        //     if x == 0 {
+        //         self.cube.min[0]
+        //     }else{
+        //         center[0]
+        //     },
+        //     if y == 0 {
+        //         self.cube.min[1]
+        //     }else{
+        //         center[1]
+        //     })
     }
 
-    fn calc_max(&self, x: u32, y: u32) -> Vec2 {
-        Vec2::new(
-            if x == 0 {
-                self.rect.center_x()
-            }else{
-                self.rect.max.x
-            },
-            if y == 0 {
-                self.rect.center_y()
-            }else{
-                self.rect.max.y
-            })
+    fn calc_max(&self, bits: u64) -> T {
+        let center = self.cube.center();
+        let mut t = T::zero();
+        let dim = T::dim(None);
+        for n in 0..dim {
+            let bit = (bits >> n) & 1;
+            t[n] = if bit == 0 {
+                center[n]
+            } else {
+                self.cube.max[n]
+            };
+        }
+        t
+        // Vec2::new(
+        //     if x == 0 {
+        //         center[0]
+        //     }else{
+        //         self.cube.max[0]
+        //     },
+        //     if y == 0 {
+        //         center[1]
+        //     }else{
+        //         self.cube.max[1]
+        //     })
     }
 }

@@ -1,80 +1,68 @@
+use ::VecLike;
+
 use rand::{Rand, Rng};
 
-use na::Vec2 as naVec2;
-pub type Vec2 = naVec2<f64>;
+use num::Zero;
+
+use na::Dim;
 
 use std::fmt::{Debug, Formatter};
 use std::fmt::Result as FmtResult;
 
 #[derive(Clone, Copy)]
-pub struct Rect {
-    pub min: Vec2,
-    pub max: Vec2,
+pub struct Hypercube<T>  {
+    pub min: T,
+    pub max: T,
 }
 
-impl Rect {
+impl<T: VecLike<T>> Hypercube<T> {
     #[inline]
-    pub fn new(min: Vec2, max: Vec2) -> Self {
-        Rect{min: min, max: max}
+    pub fn new(min: T, max: T) -> Self {
+        Hypercube{min: min, max: max}
     }
 
     #[inline]
-    pub fn area(&self) -> f64 {
-        self.width() * self.height()
+    pub fn volume(&self) -> f64 {
+        let mut result = 1.0;
+        let dim = T::dim(None);
+        for _ in 0..dim {
+            result *= self.edge();
+        }
+        result
     }
 
     #[inline]
-    pub fn width(&self) -> f64 {
-        self.max.x - self.min.x
+    pub fn edge(&self) -> f64 {
+        self.max[0] - self.min[0]
     }
 
     #[inline]
-    pub fn height(&self) -> f64 {
-        self.max.y - self.min.y
+    pub fn center(&self) -> T {
+        (self.max + self.min) / 2.0
     }
 
     #[inline]
-    pub fn center_x(&self) -> f64 {
-        (self.max.x + self.min.x) / 2f64
-    }
-
-    #[inline]
-    pub fn center_y(&self) -> f64 {
-        (self.max.y + self.min.y) / 2f64
-    }
-
-    #[inline]
-    pub fn random_point_inside<F>(&self, rand: &mut F) -> Vec2 where F: Rng {
-        Vec2::new(
-            f64::rand(rand).mul_add(self.width(), self.min.x),
-            f64::rand(rand).mul_add(self.height(), self.min.y)
-        )
+    pub fn random_point_inside<F>(&self, rand: &mut F) -> T where F: Rng {
+        let mut t = T::zero();
+        let dim = T::dim(None);
+        for n in 0..dim {
+            t[n] = f64::rand(rand).mul_add(self.edge(), self.min[n]);
+        }
+        t
     }
 }
 
-impl Debug for Rect {
+impl<T: VecLike<T>> Debug for Hypercube<T> {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "Rect({:?}, {:?})", self.min, self.max)
+        write!(f, "Hypercube({:?}, {:?})", self.min, self.max)
     }
 }
 
-impl PartialEq for Rect {
+impl<T: VecLike<T>> PartialEq for Hypercube<T> {
     #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.min == other.min && self.max == other.max
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "visualise")]
-#[inline]
-pub fn modulo(x: i32, y: i32) -> i32 {
-    let result = x % y;
-    if result < 0 {
-        result + y
-    } else {
-        result
     }
 }
 
@@ -85,17 +73,17 @@ pub enum Intersection {
 }
 
 #[inline]
-pub fn test_intersection(rect: Rect, sample: Vec2, radius: f64) -> Intersection {
+pub fn test_intersection<T: VecLike<T>>(rect: Hypercube<T>, sample: T, radius: f64) -> Intersection {
     let radius2 = radius * radius;
-    let dims = 2usize;
-    let mut min = 0f64;
-    let mut max = 0f64;
+    let dims = T::dim(None);//2usize;
+    let mut min = 0.0;
+    let mut max = 0.0;
     for i in 0usize..dims {
         let cur_min = rect.min[i];
         let cur_max = rect.max[i];
         let cur_sample = sample[i];
         let dmin = cur_min - cur_sample;
-        if dmin > 0f64 {
+        if dmin > 0.0 {
             if dmin > radius {
                 return Intersection::Out;
             }
@@ -108,7 +96,7 @@ pub fn test_intersection(rect: Rect, sample: Vec2, radius: f64) -> Intersection 
             continue;
         }
         let dmin = cur_sample - cur_max;
-        if dmin > 0f64 {
+        if dmin > 0.0 {
             if dmin > radius {
                 return Intersection::Out;
             }
