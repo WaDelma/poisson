@@ -5,9 +5,7 @@ use rand::{SeedableRng, XorShiftRng};
 use na::Norm;
 
 mod common;
-#[cfg(not(feature = "no2d"))]
 mod dim2;
-#[cfg(not(feature = "no3d"))]
 mod dim3;
 
 fn test_with_seeds<T: VecLike<T>>(radius: f64, seeds: u32, periodicity: bool) {
@@ -28,15 +26,14 @@ fn test_with_seeds_prefill<T: VecLike<T>, F>(radius: f64, seeds: u32, periodicit
         let vecs = if periodicity {
             let mut vecs2 = vec![];
             let dim = T::dim(None);
-            for n in 0..3u64.pow(dim as u32) {
+            for n in 0..3i64.pow(dim as u32) {
                 let mut t = T::zero();
                 for i in 0..dim {
-                    t[i] = match (n / (1 + i as u64 * 2)) % 3 {
-                        0 => -1.0,
-                        1 => 0.0,
-                        2 => 1.0,
-                        j @ _ => unreachable!("This shouldn't be possible, but Rust cannot figure it out. Failed with: {}", j)
+                    let mut div = i as i64 * 3;
+                    if div == 0 {
+                        div = 1;
                     }
+                    t[i] = ((n / div) % 3 - 1) as f64;
                 }
                 for v in &vecs {
                     vecs2.push(*v + t);

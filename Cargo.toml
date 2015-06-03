@@ -13,7 +13,3 @@ license = "MIT"
 rand = "0.3.8"
 nalgebra = "0.2.15"
 num = "0.1.24"
-
-[features]
-no2d = []
-no3d = []
