@@ -175,7 +175,7 @@ impl <R> PoissonDisk<R> where R: Rng {
                 return child.clone();
             }
         }
-        unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen.");
+        unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen. limit: {} volume: {}", random_limit, volume_counter);
     }
 
     fn subdivide<T: VecLike<T>>(&self, node: &Node<T>) -> f64 {
@@ -343,12 +343,12 @@ impl<T: VecLike<T>> Node<T> {
             //     }
             // }
         } else {
-            // borrow.childs.clear();
-            // borrow.samples.clear();
+            borrow.childs.clear();
+            borrow.samples.clear();
             borrow.volume = 0f64;
             drop(borrow);
             if let Some(p) = parent {
-                p.0.borrow_mut().childs.retain(|a| a.0.borrow().volume != 0f64);
+                p.0.borrow_mut().childs.retain(|a| a.0.borrow().volume > 0f64);
             }
         }
     }

@@ -68,7 +68,7 @@ fn test_3d_16th_of_max_radius_perioditic() {
 }
 
 #[test]
-fn test_3d_2th_of_max_radius_prefilled_with_max_radius() {
+fn test_3d_2th_of_max_radius_prefilled_with_max_nonperioditic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec3, _>(radius / 2f64, 800, false, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
@@ -78,7 +78,7 @@ fn test_3d_2th_of_max_radius_prefilled_with_max_radius() {
 }
 
 #[test]
-fn test_3d_4th_of_max_radius_prefilled_with_2rd_of_max_radius() {
+fn test_3d_4th_of_max_radius_prefilled_with_2rd_of_max_nonperioditic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec3, _>(radius / 4f64, 400, false, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
@@ -88,7 +88,7 @@ fn test_3d_4th_of_max_radius_prefilled_with_2rd_of_max_radius() {
 }
 
 #[test]
-fn test_3d_8th_of_max_radius_prefilled_with_4th_of_max_radius() {
+fn test_3d_8th_of_max_radius_prefilled_with_4th_of_max_nonperioditic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec3, _>(radius / 8f64, 200, false, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
@@ -98,7 +98,7 @@ fn test_3d_8th_of_max_radius_prefilled_with_4th_of_max_radius() {
 }
 
 #[test]
-fn test_3d_16th_of_max_radius_prefilled_with_8th_of_max_radius() {
+fn test_3d_16th_of_max_radius_prefilled_with_8th_of_max_nonperioditic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec3, _>(radius / 16f64, 100, false, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
