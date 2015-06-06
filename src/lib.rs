@@ -5,6 +5,8 @@
 //!    * For each point there is disk of certain radius which doesn't intersect with any disk of any other point
 //!    * Nodes fill the space uniformly
 //!
+#[macro_use(debug_unreachable)]
+extern crate debug_unreachable;
 
 extern crate rand;
 use rand::{Rand, Rng};
@@ -130,6 +132,7 @@ impl <R> PoissonDisk<R> where R: Rng {
         for p in points.iter() {
             self.update_with_periodicity(&tree, None, *p);
         }
+        let mut tick = 0;
         while !tree.0.borrow().is_empty() {
             let (volume, sample) = self.generate(&tree, None, 0);
             tree.reduce(None, volume);
@@ -137,9 +140,30 @@ impl <R> PoissonDisk<R> where R: Rng {
                 self.update_with_periodicity(&tree, None, s);
                 points.push(s);
             }
+            if tick % 100000 == 0 {
+                let (nodes, samples) = Self::count(&tree);
+                println!("samples: {} nodes: {} samples/nodes: {}", samples, nodes, (samples as u64 / nodes));
+            }
+            tick += 1;
             // let c = CREATED.load(Ordering::SeqCst);
             // let d = DESTROYED.load(Ordering::SeqCst);
             // println!("{} {} {}", c, d , (c as i32 - d as i32));
+        }
+    }
+
+    fn count<T: VecLike<T>>(node: &Node<T>) -> (u64, usize) {
+        let borrow = node.0.borrow();
+        if borrow.is_leaf() {
+            (1, borrow.samples.len())
+        } else {
+            let mut nodes = 1;
+            let mut samples = borrow.samples.len();
+            for n in &borrow.childs {
+                let (n, s) = Self::count(n);
+                nodes += n;
+                samples += s;
+            }
+            (nodes, samples)
         }
     }
 
@@ -175,7 +199,9 @@ impl <R> PoissonDisk<R> where R: Rng {
                 return child.clone();
             }
         }
-        unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen. limit: {} volume: {}", random_limit, volume_counter);
+        unsafe {
+            debug_unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen.");
+        }
     }
 
     fn subdivide<T: VecLike<T>>(&self, node: &Node<T>) -> f64 {
