@@ -7,6 +7,7 @@ use na::Norm;
 mod common;
 mod dim2;
 mod dim3;
+mod dim4;
 
 fn test_with_seeds<T: VecLike<T>>(radius: f64, seeds: u32, periodicity: bool) {
     test_with_seeds_prefill::<T, _>(radius, seeds, periodicity, &mut |_, _|{});
@@ -28,12 +29,11 @@ fn test_with_seeds_prefill<T: VecLike<T>, F>(radius: f64, seeds: u32, periodicit
             let dim = T::dim(None);
             for n in 0..3i64.pow(dim as u32) {
                 let mut t = T::zero();
+                let mut div = n;
                 for i in 0..dim {
-                    let mut div = i as i64 * 3;
-                    if div == 0 {
-                        div = 1;
-                    }
-                    t[i] = ((n / div) % 3 - 1) as f64;
+                    let rem = div % 3;
+                    div /= 3;
+                    t[i] = (rem - 1) as f64;
                 }
                 for v in &vecs {
                     vecs2.push(*v + t);
@@ -47,7 +47,7 @@ fn test_with_seeds_prefill<T: VecLike<T>, F>(radius: f64, seeds: u32, periodicit
     }
 }
 
-fn assert_legal_poisson<T: VecLike<T>>(vecs: &Vec<Sample<T>>) {
+pub fn assert_legal_poisson<T: VecLike<T>>(vecs: &Vec<Sample<T>>) {
     for &v1 in vecs {
         for &v2 in vecs {
             if v1.pos == v2.pos {

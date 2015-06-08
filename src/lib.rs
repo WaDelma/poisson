@@ -5,8 +5,6 @@
 //!    * For each point there is disk of certain radius which doesn't intersect with any disk of any other point
 //!    * Nodes fill the space uniformly
 //!
-#[macro_use(debug_unreachable)]
-extern crate debug_unreachable;
 
 extern crate rand;
 use rand::{Rand, Rng};
@@ -41,6 +39,7 @@ use std::mem::drop;
 use std::fmt::{Debug, Formatter};
 use std::fmt::Result as FmtResult;
 use std::ops::{Sub, Add, Div, Index, IndexMut};
+use std::collections::LinkedList;
 
 use math::{Intersection, Hypercube};
 
@@ -49,7 +48,7 @@ mod math;
 mod test;
 
 // This means that last subdivide gives cubes which side is the smallest possible subnormal positive double.
-const MAX_DEPTH: u32 = 1074;
+// const MAX_DEPTH: u32 = 1074; TODO
 
 /// Calculates approximately needed radius from amount of points wanted and relative radius specified.
 /// Points should be larger than 0.
@@ -132,7 +131,6 @@ impl <R> PoissonDisk<R> where R: Rng {
         for p in points.iter() {
             self.update_with_periodicity(&tree, None, *p);
         }
-        let mut tick = 0;
         while !tree.0.borrow().is_empty() {
             let (volume, sample) = self.generate(&tree, None, 0);
             tree.reduce(None, volume);
@@ -140,30 +138,6 @@ impl <R> PoissonDisk<R> where R: Rng {
                 self.update_with_periodicity(&tree, None, s);
                 points.push(s);
             }
-            if tick % 100000 == 0 {
-                let (nodes, samples) = Self::count(&tree);
-                println!("samples: {} nodes: {} samples/nodes: {}", samples, nodes, (samples as u64 / nodes));
-            }
-            tick += 1;
-            // let c = CREATED.load(Ordering::SeqCst);
-            // let d = DESTROYED.load(Ordering::SeqCst);
-            // println!("{} {} {}", c, d , (c as i32 - d as i32));
-        }
-    }
-
-    fn count<T: VecLike<T>>(node: &Node<T>) -> (u64, usize) {
-        let borrow = node.0.borrow();
-        if borrow.is_leaf() {
-            (1, borrow.samples.len())
-        } else {
-            let mut nodes = 1;
-            let mut samples = borrow.samples.len();
-            for n in &borrow.childs {
-                let (n, s) = Self::count(n);
-                nodes += n;
-                samples += s;
-            }
-            (nodes, samples)
         }
     }
 
@@ -171,7 +145,6 @@ impl <R> PoissonDisk<R> where R: Rng {
         let borrow = node.0.borrow();
         if borrow.is_leaf() {
             let sample = Sample::new(borrow.cube.random_point_inside(&mut self.rand), self.radius);
-            // println!("{}", depth);
             if borrow.is_sample_valid(sample) {
                 (0f64, Some(sample))
             }else if borrow.cube.edge() > std::f64::MIN_POSITIVE {//depth < MAX_DEPTH {
@@ -199,9 +172,7 @@ impl <R> PoissonDisk<R> where R: Rng {
                 return child.clone();
             }
         }
-        unsafe {
-            debug_unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen.");
-        }
+        unreachable!("Either volumes of child nodes combined doesn't equal volume of the node or random doesn't generate number [0, 1[. This should never happen.");
     }
 
     fn subdivide<T: VecLike<T>>(&self, node: &Node<T>) -> f64 {
@@ -213,7 +184,7 @@ impl <R> PoissonDisk<R> where R: Rng {
         	for sample in &borrow.samples {
                 match math::test_intersection(child_borrow.cube, sample.pos, sample.radius + self.radius) {
                     Intersection::Over => {
-                        child_borrow.samples.push(*sample);
+                        child_borrow.samples.push_back(*sample);
                     }
                     Intersection::In => {
     			        delta += child_borrow.volume;
@@ -224,6 +195,10 @@ impl <R> PoissonDisk<R> where R: Rng {
 		    }
             true
         });
+        // for c in &mut childs {
+        //     c.0.borrow_mut().samples.shrink_to_fit();
+        // }
+        childs.shrink_to_fit();
         borrow.childs = childs;
 		borrow.samples.clear();
 		return delta;
@@ -234,12 +209,11 @@ impl <R> PoissonDisk<R> where R: Rng {
             let dim = T::dim(None);
             for n in 0..3i64.pow(dim as u32) {
                 let mut t = T::zero();
+                let mut div = n;
                 for i in 0..dim {
-                    let mut div = i as i64 * 3;
-                    if div == 0 {
-                        div = 1;
-                    }
-                    t[i] = ((n / div) % 3 - 1) as f64;
+                    let rem = div % 3;
+                    div /= 3;
+                    t[i] = (rem - 1) as f64;
                 }
                 node.reduce(parent, self.update(node, sample + t));
             }
@@ -263,7 +237,7 @@ impl <R> PoissonDisk<R> where R: Rng {
             }
             Intersection::Over => {
                 if borrow.is_leaf() {
-                    borrow.samples.push(sample);
+                    borrow.samples.push_back(sample);
                     return 0.0;
                 }
                 let mut result = 0.0;
@@ -319,7 +293,7 @@ struct Node<T: VecLike<T>>(Rc<RefCell<InnerNode<T>>>);
 
 struct InnerNode<T: VecLike<T>> {
     childs: Vec<Node<T>>,
-    samples: Vec<Sample<T>>,
+    samples: LinkedList<Sample<T>>,
     cube: Hypercube<T>,
     volume: f64,
 }
@@ -330,16 +304,20 @@ impl<T: VecLike<T>> Debug for Node<T> {
     }
 }
 
-// use std::sync::atomic::{AtomicUsize, Ordering, ATOMIC_USIZE_INIT};
-// static CREATED: AtomicUsize = ATOMIC_USIZE_INIT;
-// static DESTROYED: AtomicUsize = ATOMIC_USIZE_INIT;
-
 impl<T: VecLike<T>> Node<T> {
     fn new(cube: Hypercube<T>) -> Node<T> {
-        // CREATED.fetch_add(1, Ordering::SeqCst);
         Node(Rc::new(RefCell::new(InnerNode{
-                childs: vec![],
-                samples: vec![],
+                childs: Vec::with_capacity(0),
+                samples: LinkedList::new(),//Vec::with_capacity(0),
+                volume: cube.volume(),
+                cube: cube,
+            })))
+    }
+
+    fn with_atmost_samples(cube: Hypercube<T>, samples: usize) -> Node<T> {
+        Node(Rc::new(RefCell::new(InnerNode{
+                childs: Vec::with_capacity(0),
+                samples: LinkedList::new(),
                 volume: cube.volume(),
                 cube: cube,
             })))
@@ -381,20 +359,15 @@ impl<T: VecLike<T>> Node<T> {
 
     fn create_childs(&self) -> Vec<Node<T>> {
         let borrow = self.0.borrow();
-        let mut result = vec![];
         let dim = T::dim(None);
-        for n in 0..2u64.pow(dim as u32) {
-            result.push(Node::new(borrow.child_cube(n)));
+        let childs = 2usize.pow(dim as u32);
+        let mut result = Vec::with_capacity(childs);
+        for n in 0..childs {
+            result.push(Node::with_atmost_samples(borrow.child_cube(n), borrow.samples.len()));
         }
         result
     }
 }
-
-// impl<T: VecLike<T>> Drop for InnerNode<T> {
-//     fn drop(&mut self) {
-//         DESTROYED.fetch_add(1, Ordering::SeqCst);
-//     }
-// }
 
 impl<T: VecLike<T>> PartialEq for InnerNode<T> {
     fn eq(&self, other: &Self) -> bool {
@@ -415,11 +388,11 @@ impl<T: VecLike<T>> InnerNode<T> {
         self.samples.iter().all(|s| (s.pos - sample.pos).sqnorm() >= (s.radius + sample.radius).powi(2))
     }
 
-    fn child_cube(&self, n: u64) -> Hypercube<T> {
+    fn child_cube(&self, n: usize) -> Hypercube<T> {
         Hypercube::new(self.calc_min(n), self.calc_max(n))
     }
 
-    fn calc_min(&self, bits: u64) -> T {
+    fn calc_min(&self, bits: usize) -> T {
         let center = self.cube.center();
         let mut t = T::zero();
         let dim = T::dim(None);
@@ -434,7 +407,7 @@ impl<T: VecLike<T>> InnerNode<T> {
         t
     }
 
-    fn calc_max(&self, bits: u64) -> T {
+    fn calc_max(&self, bits: usize) -> T {
         let center = self.cube.center();
         let mut t = T::zero();
         let dim = T::dim(None);
