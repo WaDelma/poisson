@@ -1,6 +1,6 @@
 [package]
 name = "poisson"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["WaDelma <>"]
 description = "Poisson-disk distribution generator."
 repository = "https://github.com/WaDelma/poisson"
@@ -11,6 +11,6 @@ license = "MIT"
 
 [dependencies]
 rand = "0.3.8"
-nalgebra = "0.2.15"
-num = "0.1.24"
+nalgebra = "0.2.17"
+num = "0.1.25"
 lazy_static = "0.1.11"
