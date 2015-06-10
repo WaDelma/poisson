@@ -9,18 +9,43 @@ mod dim2;
 mod dim3;
 mod dim4;
 
-fn test_with_seeds<T: VecLike<T>>(radius: f64, seeds: u32, periodicity: bool) {
-    test_with_seeds_prefill::<T, _>(radius, seeds, periodicity, &mut |_, _|{});
+fn test_with_samples<T: VecLike<T>>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool) {
+    for i in 0..seeds {
+        let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
+        let mut poisson = PoissonDisk::with_samples(rand, samples, relative_radius, periodicity);
+        let mut vecs = vec![];
+        poisson.create(&mut vecs);
+        let vecs = if periodicity {
+            let mut vecs2 = vec![];
+            let dim = T::dim(None);
+            for n in 0..3i64.pow(dim as u32) {
+                let mut t = T::zero();
+                let mut div = n;
+                for i in 0..dim {
+                    let rem = div % 3;
+                    div /= 3;
+                    t[i] = (rem - 1) as f64;
+                }
+                for v in &vecs {
+                    vecs2.push(*v + t);
+                }
+            }
+            vecs2
+        } else {
+            vecs
+        };
+        assert_legal_poisson(&vecs);
+    }
 }
+
+// fn test_with_seeds<T: VecLike<T>>(radius: f64, seeds: u32, periodicity: bool) {
+//     test_with_seeds_prefill::<T, _>(radius, seeds, periodicity, &mut |_, _|{});
+// }
 
 fn test_with_seeds_prefill<T: VecLike<T>, F>(radius: f64, seeds: u32, periodicity: bool, filler: &mut F) where F: FnMut(&mut Vec<Sample<T>>, u32) {
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson = if periodicity {
-            PoissonDisk::perioditic(rand, radius)
-        } else {
-            PoissonDisk::new(rand, radius)
-        };
+        let mut poisson = PoissonDisk::with_radius(rand, radius, periodicity);
         let mut vecs = vec![];
         filler(&mut vecs, i);
         poisson.create(&mut vecs);

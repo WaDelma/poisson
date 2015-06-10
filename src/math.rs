@@ -8,6 +8,7 @@ use na::Dim;
 
 use std::fmt::{Debug, Formatter};
 use std::fmt::Result as FmtResult;
+use std::f64::consts::PI;
 
 #[derive(Clone, Copy)]
 pub struct Hypercube<T>  {
@@ -115,4 +116,72 @@ pub fn test_intersection<T: VecLike<T>>(rect: Hypercube<T>, sample: T, radius: f
         return Intersection::Over;
     }
     return Intersection::In;
+}
+
+lazy_static! {
+    static ref MAX_PACKING_DENSITIES: [f64; 7] = [
+        1.0 / 6.0 * PI * 3f64.sqrt(),
+        1.0 / 6.0 * PI * 2f64.sqrt(),
+        1.0 / 16.0 * PI.powi(2),
+        1.0 / 30.0 * PI.powi(2) * 2f64.sqrt(),
+        1.0 / 144.0 * PI.powi(3) * 3f64.sqrt(),
+        1.0 / 105.0 * PI.powi(3),
+        1.0 / 384.0 * PI.powi(4),
+        ];
+    // gamma((index + 2) / 2 + 1)
+    static ref GAMMA: [f64; 7] = [
+        1.0,
+        (3.0 * PI.sqrt()) / 4.0,
+        2.0,
+        (15.0 * PI.sqrt()) / 8.0,
+        6.0,
+        (105.0 * PI.sqrt()) / 16.0,
+        24.0,
+        ];
+    static ref MAX_RADII: [f64; 7] = [
+            precalc(2),
+            precalc(3),
+            precalc(4),
+            precalc(5),
+            precalc(6),
+            precalc(7),
+            precalc(8),
+        ];
+    //TODO: Paper provides needed constants only for 2, 3 and 4 dimensions.
+    static ref ALPHA: [f64; 3] = [
+            1.0997,
+            2.2119,
+            4.1114,
+        ];
+    static ref BETA: [f64; 3] = [
+            -0.4999,
+            -0.3538,
+            -0.3056,
+        ];
+}
+
+fn precalc(dim: usize) -> f64 {
+    let index = dim - 2;
+    (MAX_PACKING_DENSITIES[index] * GAMMA[index]) / PI.powf(dim as f64 / 2.0)
+}
+
+fn newton(samples: u32, dim: usize) -> u32 {
+    let mut n = 1f64;
+    let alpha = ALPHA[dim - 2];
+    let beta = BETA[dim - 2];
+    for _ in 0..5 {
+        n = n - (n + alpha * n.powf(beta + 1.0) - samples as f64) / (1.0 + alpha * (beta + 1.0) * n.powf(beta));
+        if n < 1.0 {
+            return 1;
+        }
+    }
+    n as u32
+}
+
+pub fn calc_radius<T: VecLike<T>>(samples: u32, relative_radius: f64, periodicity: bool) -> f64 {
+    let dim = T::dim(None) as usize;
+    let samples = if periodicity { samples } else {
+        newton(samples, dim)
+    };
+    (MAX_RADII[dim - 2] / samples as f64).powf(1.0 / dim as f64) * relative_radius
 }
