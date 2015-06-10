@@ -18,6 +18,7 @@ use na::{Dim, Norm};
 #[macro_use]
 extern crate lazy_static;
 
+/// Describes what traits PoissonDisk needs to be able to operate.
 pub trait VecLike<T>:
     Index<usize, Output = f64> +
     IndexMut<usize, Output = f64> +
@@ -100,9 +101,9 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
     /// Creates new PoissonDisk with radius calculated so that approximately specified number of samples are generated.
     /// Amount of smales should be larger than 0.
     /// Relative radius should be [0, 1].
-    /// Supported for 2, 3 and 4 dimensional generation.
+    /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
     pub fn with_samples(rand: R, samples: u32, relative_radius: f64, periodicity: bool) -> PoissonDisk<R, V> {
-        assert!(V::dim(None) < 5);
+        assert!(periodicity || V::dim(None) < 5);
         assert!(samples > 0);
         assert!(relative_radius >= 0.0);
         assert!(relative_radius <= 1.0);
@@ -197,7 +198,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
                     div /= 3;
                     t[i] = (rem - 1) as f64;
                 }
-                node.reduce(parent, self.update(node, sample + t));
+                node.reduce(parent, self.update(node, Sample::new(sample.pos + t, sample.radius)));
             }
         } else {
             node.reduce(parent, self.update(node, sample));
@@ -252,17 +253,17 @@ impl<T: VecLike<T>> Sample<T> {
         Sample{pos: pos, radius: radius}
     }
 
-    pub fn get_radius(&self) -> f64 {
+    pub fn radius(&self) -> f64 {
         self.radius
     }
 }
 
-impl<T: VecLike<T>> Add<T> for Sample<T> {
-    type Output = Sample<T>;
-    fn add(self, other: T) ->  Self::Output {
-        Sample{pos: self.pos + other, .. self}
-    }
-}
+// impl<T: VecLike<T>> Add<T> for Sample<T> {
+//     type Output = Sample<T>;
+//     fn add(self, other: T) ->  Self::Output {
+//         Sample{pos: self.pos + other, .. self}
+//     }
+// }
 
 impl<T: VecLike<T>> Debug for Sample<T> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {

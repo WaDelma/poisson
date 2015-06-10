@@ -12,7 +12,7 @@ mod dim4;
 fn test_with_samples<T: VecLike<T>>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool) {
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson = PoissonDisk::with_samples(rand, samples, relative_radius, periodicity);
+        let mut poisson = PoissonDisk::<_, T>::with_samples(rand, samples, relative_radius, periodicity);
         let mut vecs = vec![];
         poisson.create(&mut vecs);
         let vecs = if periodicity {
@@ -27,7 +27,7 @@ fn test_with_samples<T: VecLike<T>>(samples: u32, relative_radius: f64, seeds: u
                     t[i] = (rem - 1) as f64;
                 }
                 for v in &vecs {
-                    vecs2.push(*v + t);
+                    vecs2.push(Sample::new(v.pos + t, v.radius()));
                 }
             }
             vecs2
@@ -61,7 +61,7 @@ fn test_with_seeds_prefill<T: VecLike<T>, F>(radius: f64, seeds: u32, periodicit
                     t[i] = (rem - 1) as f64;
                 }
                 for v in &vecs {
-                    vecs2.push(*v + t);
+                    vecs2.push(Sample::new(v.pos + t, v.radius()));
                 }
             }
             vecs2
@@ -80,7 +80,7 @@ pub fn assert_legal_poisson<T: VecLike<T>>(vecs: &Vec<Sample<T>>) {
             }
             let diff = v1.pos - v2.pos;
             let dist = diff.norm();
-            let allowed_dist = v1.get_radius() + v2.get_radius();
+            let allowed_dist = v1.radius() + v2.radius();
             assert!(dist >= allowed_dist, "Poisson-disk distribution requirement not met: There exists 2 vectors with distance to each other of {} which is smaller than smallest allowed one {}. The samples: [{:?}, {:?}]", dist, allowed_dist, v1, v2);
         }
     }
