@@ -110,6 +110,10 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
         Self::with_radius(rand, math::calc_radius::<V>(samples, relative_radius, periodicity), periodicity)
     }
 
+    pub fn radius(&self) -> f64 {
+        self.radius
+    }
+
     /// Populates given vector with poisson-disk distribution [0, 1]²
     /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
     /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
@@ -133,7 +137,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
         if borrow.is_leaf() {
             let sample = Sample::new(borrow.cube.random_point_inside(&mut self.rand), self.radius);
             if borrow.is_sample_valid(sample) {
-                (0f64, Some(sample))
+                (0.0, Some(sample))
             }else if depth < MAX_DEPTH {//borrow.cube.edge() > std::f64::MIN_POSITIVE {
                 drop(borrow);
                 (self.subdivide(node), None)
@@ -152,7 +156,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
     fn choose_random_child(&mut self, node: &Node<V>) -> Node<V> {
         let borrow = node.0.borrow();
         let random_limit = f64::rand(&mut self.rand) * borrow.volume;
-        let mut volume_counter = 0f64;
+        let mut volume_counter = 0.0;
         for child in &borrow.childs {
             volume_counter += child.0.borrow().volume;
             if volume_counter > random_limit {
@@ -163,7 +167,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
     }
 
     fn subdivide(&self, node: &Node<V>) -> f64 {
-		let mut delta = 0f64;
+		let mut delta = 0.0;
         let mut childs = node.create_childs();
         let mut borrow = node.0.borrow_mut();
         childs.retain(|child| {
@@ -184,7 +188,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
         });
         borrow.childs = childs;
 		borrow.samples.clear();
-		return delta;
+		delta
 	}
 
     fn update_with_periodicity(&self, node: &Node<V>, parent: Option<&Node<V>>, sample: Sample<V>) {
@@ -242,7 +246,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
 }
 
 /// Describes position of sample and radius of disk around it.
-#[derive(Clone, Copy)]
+#[derive(PartialEq, Clone, Copy)]
 pub struct Sample<T: VecLike<T>> {
     pub pos: T,
     radius: f64,
@@ -257,13 +261,6 @@ impl<T: VecLike<T>> Sample<T> {
         self.radius
     }
 }
-
-// impl<T: VecLike<T>> Add<T> for Sample<T> {
-//     type Output = Sample<T>;
-//     fn add(self, other: T) ->  Self::Output {
-//         Sample{pos: self.pos + other, .. self}
-//     }
-// }
 
 impl<T: VecLike<T>> Debug for Sample<T> {
     fn fmt(&self, f: &mut Formatter) -> FmtResult {
@@ -333,10 +330,10 @@ impl<T: VecLike<T>> Node<T> {
         } else {
             borrow.childs.clear();
             borrow.samples.clear();
-            borrow.volume = 0f64;
+            borrow.volume = 0.0;
             drop(borrow);
             if let Some(p) = parent {
-                p.0.borrow_mut().childs.retain(|a| a.0.borrow().volume > 0f64);
+                p.0.borrow_mut().childs.retain(|a| a.0.borrow().volume > 0.0);
             }
         }
     }

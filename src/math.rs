@@ -24,12 +24,7 @@ impl<T: VecLike<T>> Hypercube<T> {
 
     #[inline]
     pub fn volume(&self) -> f64 {
-        let mut result = 1.0;
-        let dim = T::dim(None);
-        for _ in 0..dim {
-            result *= self.edge();
-        }
-        result
+        self.edge().powi(T::dim(None) as i32)
     }
 
     #[inline]
@@ -76,7 +71,7 @@ pub enum Intersection {
 #[inline]
 pub fn test_intersection<T: VecLike<T>>(rect: Hypercube<T>, sample: T, radius: f64) -> Intersection {
     let radius2 = radius * radius;
-    let dims = T::dim(None);//2usize;
+    let dims = T::dim(None);
     let mut min = 0.0;
     let mut max = 0.0;
     for i in 0usize..dims {

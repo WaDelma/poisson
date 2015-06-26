@@ -11,6 +11,6 @@ license = "MIT"
 
 [dependencies]
 rand = "0.3.8"
-nalgebra = "0.2.17"
+nalgebra = "0.2.18"
 num = "0.1.25"
 lazy_static = "0.1.11"

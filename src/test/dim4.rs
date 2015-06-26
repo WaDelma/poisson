@@ -4,8 +4,8 @@ use test::{test_with_samples, test_with_seeds_prefill};
 
 use rand::{SeedableRng, XorShiftRng};
 
-use na::Vec4 as naVec4;
-pub type Vec4 = naVec4<f64>;
+extern crate nalgebra as na;
+pub type Vec4 = na::Vec4<f64>;
 
 #[test]
 fn test_4d_1_80_normal() {
