@@ -32,8 +32,8 @@ fn test_4d_2th_prefilled_1th_normal() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec4, _>(radius / 2f64, 400, false, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
-            let mut poisson = PoissonDisk::with_radius(rand, radius, false);
-            poisson.create(v);
+            let mut poisson = PoissonDisk::new(rand).build_radius(radius);
+            poisson.generate(v);
         });
 }
 
@@ -42,8 +42,8 @@ fn test_4d_8th_prefilled_4th_normal() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec4, _>(radius / 8f64, 50, false, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
-            let mut poisson = PoissonDisk::with_radius(rand, radius / 4f64, false);
-            poisson.create(v);
+            let mut poisson = PoissonDisk::new(rand).build_radius(radius / 4f64);
+            poisson.generate(v);
         });
 }
 
@@ -52,8 +52,8 @@ fn test_4d_2th_prefilled_1th_perioditic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec4, _>(radius / 2f64, 100, true, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
-            let mut poisson = PoissonDisk::with_radius(rand, 0.499999999, true);
-            poisson.create(v);
+            let mut poisson = PoissonDisk::new(rand).perioditic().build_radius(0.499999999);
+            poisson.generate(v);
         });
 }
 
@@ -62,7 +62,7 @@ fn test_4d_4th_prefilled_2th_perioditic() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec4, _>(radius / 4f64, 1, true, &mut |ref mut v, i| {
             let rand = XorShiftRng::from_seed([i * 2 + 1, i * 1 + 1, i + 1, 2]);
-            let mut poisson = PoissonDisk::with_radius(rand, radius / 2f64, true);
-            poisson.create(v);
+            let mut poisson = PoissonDisk::new(rand).perioditic().build_radius(radius / 2f64);
+            poisson.generate(v);
         });
 }

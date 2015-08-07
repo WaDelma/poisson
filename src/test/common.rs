@@ -8,13 +8,13 @@ pub type Vec2 = naVec2<f64>;
 #[test]
 #[should_panic]
 fn test_normal_too_small_radius() {
-    let _ = PoissonDisk::<_, Vec2>::with_radius(rand::weak_rng(), 0.0, false);
+    let _ = PoissonDisk::new(rand::weak_rng()).build_radius::<Vec2>(0.0);
 }
 
 #[test]
 #[should_panic]
 fn test_normal_too_large_radius() {
-    let _ = PoissonDisk::<_, Vec2>::with_radius(rand::weak_rng(), 2f64.sqrt() / 2.0 + 0.0001, false);
+    let _ = PoissonDisk::new(rand::weak_rng()).build_radius::<Vec2>(2f64.sqrt() / 2.0 + 0.0001);
 }
 
 // #[test]

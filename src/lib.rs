@@ -18,47 +18,41 @@ use na::{Dim, Norm};
 #[macro_use]
 extern crate lazy_static;
 
-/// Describes what traits PoissonDisk needs to be able to operate.
-pub trait VecLike<T>:
-    Index<usize, Output = f64> +
+/// Describes what traits the algorithm needs to be able to work.
+pub trait VecLike:
     IndexMut<usize, Output = f64> +
-    Dim +
-    Add<Output = T> +
-    Sub<Output = T> +
+    Add<Output = Self> +
+    Sub<Output = Self> +
+    Div<f64, Output = Self> +
     Norm<f64> +
     PartialEq +
-    Div<f64, Output = T> +
     Zero +
     One +
-    Copy +
-    Clone +
-    Debug {}
-impl<T> VecLike<T> for T where T:
-    Index<usize, Output = f64> +
-    IndexMut<usize, Output = f64> +
     Dim +
+    Copy {}
+impl<T> VecLike for T where T:
+    IndexMut<usize, Output = f64> +
     Add<Output = T> +
     Sub<Output = T> +
+    Div<f64, Output = T> +
     Norm<f64> +
     PartialEq +
-    Div<f64, Output = T> +
     Zero +
     One +
-    Copy +
-    Clone +
-    Debug {}
+    Dim +
+    Copy {}
 
-use std::rc::Rc;
-use std::cell::RefCell;
 use std::cmp::PartialEq;
 use std::mem::drop;
-use std::fmt::{Debug, Formatter};
-use std::fmt::Result as FmtResult;
-use std::ops::{Sub, Add, Div, Index, IndexMut};
+use std::ops::{Sub, Add, Div, IndexMut};
 use std::marker::PhantomData;
 
-use math::{Intersection, Hypercube};
+use tree::Node;
 
+use math::Hypercube;
+use math::Intersection::*;
+
+mod tree;
 mod math;
 #[cfg(test)]
 mod test;
@@ -71,59 +65,99 @@ const MAX_DEPTH: u32 = 1074;
 ///
 /// # Examples
 ///
-/// ```
+/// ```¨
+/// extern crate poisson;
 /// extern crate rand;
 /// extern crate nalgebra as na;
 /// type Vec2 = na::Vec2<f64>;
-/// extern crate poisson;
+/// use poisson::PoissonDisk;
 ///
-/// let mut poisson = poisson::PoissonDisk::<_, Vec2>::with_radius(rand::weak_rng(), 0.1, false);
-/// let mut vecs = vec![];
-/// poisson.create(&mut vecs);
-/// println!("{:?}", vecs);
+/// fn main() {
+///     let mut poisson = PoissonDisk::new(rand::weak_rng()).build_radius::<Vec2>(0.1);
+///     let mut vecs = vec![];
+///     poisson.generate(&mut vecs);
+///     println!("{:?}", vecs);
+/// }
 /// ```
-pub struct PoissonDisk<R: Rng, V: VecLike<V>> {
+pub struct PoissonDisk<R: Rng> {
+    rand: R,
+    periodicity: bool,
+}
+
+impl<R: Rng> PoissonDisk<R> {
+    /// Creates new poisson-disk generator builder with random generator specified.
+    pub fn new(rand: R) -> Self {
+        PoissonDisk{rand: rand, periodicity: false}
+    }
+
+    /// Sets the generator to generate perioditic poisson-disk distributions.
+    pub fn perioditic(mut self) -> Self {
+        self.periodicity = true;
+        self
+    }
+
+    /// Builds the generator with relative radius specified.
+    /// Radius should be ]0, 1]
+    pub fn build_relative_radius<V: VecLike>(self, radius: f64) -> PoissonGen<R, V> {
+        assert!(0. < radius);
+        assert!(radius <= 1.);
+        PoissonGen {
+            dim: PhantomData,
+            radius: radius * (2f64.sqrt() / 2.),
+            rand: self.rand,
+            periodicity: self.periodicity,
+        }
+    }
+
+    /// Builds the generator with radius specified.
+    /// Radius should be ]0, √2 / 2]
+    pub fn build_radius<V: VecLike>(self, radius: f64) -> PoissonGen<R, V> {
+        assert!(0. < radius);
+        assert!(radius <= (2f64.sqrt() / 2.));
+        PoissonGen {
+            dim: PhantomData,
+            radius: radius,
+            rand: self.rand,
+            periodicity: self.periodicity,
+        }
+    }
+
+    /// Builds the generator with radius calculated so that approximately specified number of samples are generated.
+    /// Amount of samples should be larger than 0.
+    /// Relative radius should be [0, 1].
+    /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
+    pub fn build_samples<V: VecLike>(self, samples: u32, relative_radius: f64) -> PoissonGen<R, V> {
+        assert!(self.periodicity || V::dim(None) < 5);
+        assert!(samples > 0);
+        assert!(relative_radius >= 0.);
+        assert!(relative_radius <= 1.);
+        PoissonGen {
+            dim: PhantomData,
+            radius: math::calc_radius::<V>(samples, relative_radius, self.periodicity),
+            rand: self.rand,
+            periodicity: self.periodicity,
+        }
+    }
+}
+
+pub struct PoissonGen<R: Rng, V: VecLike> {
     dim: PhantomData<V>,
     rand: R,
     radius: f64,
     periodicity: bool,
 }
 
-impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
-    /// Creates new PoissonDisk with random generator and radius specified.
-    /// Radius should be ]0, √2 / 2]
-    pub fn with_radius(rand: R, radius: f64, periodicity: bool) -> PoissonDisk<R, V> {
-        assert!(0.0 < radius);
-        assert!(radius <= (2f64.sqrt() / 2.0));
-        PoissonDisk{rand: rand, radius: radius, periodicity: periodicity, dim: PhantomData}
-    }
-
-    /// Creates new PoissonDisk with radius calculated so that approximately specified number of samples are generated.
-    /// Amount of smales should be larger than 0.
-    /// Relative radius should be [0, 1].
-    /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
-    pub fn with_samples(rand: R, samples: u32, relative_radius: f64, periodicity: bool) -> PoissonDisk<R, V> {
-        assert!(periodicity || V::dim(None) < 5);
-        assert!(samples > 0);
-        assert!(relative_radius >= 0.0);
-        assert!(relative_radius <= 1.0);
-        Self::with_radius(rand, math::calc_radius::<V>(samples, relative_radius, periodicity), periodicity)
-    }
-
-    pub fn radius(&self) -> f64 {
-        self.radius
-    }
-
+impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     /// Populates given vector with poisson-disk distribution [0, 1]²
     /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
     /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
-    pub fn create(&mut self, points: &mut Vec<Sample<V>>) {
+    pub fn generate(&mut self, points: &mut Vec<Sample<V>>) {
         let tree = Node::new(Hypercube::new(V::zero(), V::one()));
         for p in points.iter() {
             self.update_with_periodicity(&tree, None, *p);
         }
         while !tree.0.borrow().is_empty() {
-            let (volume, sample) = self.generate(&tree, None, 0);
+            let (volume, sample) = self.generate_sample(&tree, None, 0);
             tree.reduce(None, volume);
             if let Some(s) = sample {
                 self.update_with_periodicity(&tree, None, s);
@@ -132,12 +166,26 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
         }
     }
 
-    fn generate(&mut self, node: &Node<V>, parent: Option<&Node<V>>, depth: u32) -> (f64, Option<Sample<V>>) {
+    /// Sets the radius of the generator.
+    pub fn set_radius(&mut self, radius: f64) {
+        assert!(0. < radius);
+        assert!(radius <= (2f64.sqrt() / 2.));
+        self.radius = radius;
+    }
+
+    /// Gets the radius of the generator.
+    pub fn radius(&self) -> f64 {
+        self.radius
+    }
+}
+
+impl <R: Rng, V: VecLike> PoissonGen<R, V> {
+    fn generate_sample(&mut self, node: &Node<V>, parent: Option<&Node<V>>, depth: u32) -> (f64, Option<Sample<V>>) {
         let borrow = node.0.borrow();
         if borrow.is_leaf() {
             let sample = Sample::new(borrow.cube.random_point_inside(&mut self.rand), self.radius);
             if borrow.is_sample_valid(sample) {
-                (0.0, Some(sample))
+                (0., Some(sample))
             }else if depth < MAX_DEPTH {//borrow.cube.edge() > std::f64::MIN_POSITIVE {
                 drop(borrow);
                 (self.subdivide(node), None)
@@ -147,7 +195,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
         } else {
             drop(borrow);
             let child = self.choose_random_child(&node);
-            let result = self.generate(&child, Some(node), depth + 1);
+            let result = self.generate_sample(&child, Some(node), depth + 1);
             child.reduce(parent, result.0);
             result
         }
@@ -156,7 +204,7 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
     fn choose_random_child(&mut self, node: &Node<V>) -> Node<V> {
         let borrow = node.0.borrow();
         let random_limit = f64::rand(&mut self.rand) * borrow.volume;
-        let mut volume_counter = 0.0;
+        let mut volume_counter = 0.;
         for child in &borrow.childs {
             volume_counter += child.0.borrow().volume;
             if volume_counter > random_limit {
@@ -167,21 +215,19 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
     }
 
     fn subdivide(&self, node: &Node<V>) -> f64 {
-		let mut delta = 0.0;
+		let mut delta = 0.;
         let mut childs = node.create_childs();
         let mut borrow = node.0.borrow_mut();
         childs.retain(|child| {
             let mut child_borrow = child.0.borrow_mut();
         	for sample in &borrow.samples {
                 match math::test_intersection(child_borrow.cube, sample.pos, sample.radius + self.radius) {
-                    Intersection::Over => {
-                        child_borrow.samples.push(*sample);
-                    }
-                    Intersection::In => {
+                    Over => child_borrow.samples.push(*sample),
+                    In => {
     			        delta += child_borrow.volume;
     				    return false;
                     }
-                    Intersection::Out => {}
+                    Out => {}
                 }
 		    }
             true
@@ -193,14 +239,15 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
 
     fn update_with_periodicity(&self, node: &Node<V>, parent: Option<&Node<V>>, sample: Sample<V>) {
         if self.periodicity {
+            let choices = [-1., 0., 1.];
             let dim = V::dim(None);
-            for n in 0..3i64.pow(dim as u32) {
+            for n in 0..choices.len().pow(dim as u32) {
                 let mut t = V::zero();
                 let mut div = n;
                 for i in 0..dim {
-                    let rem = div % 3;
-                    div /= 3;
-                    t[i] = (rem - 1) as f64;
+                    let rem = div % choices.len();
+                    div /= choices.len();
+                    t[i] = choices[rem as usize];
                 }
                 node.reduce(parent, self.update(node, Sample::new(sample.pos + t, sample.radius)));
             }
@@ -216,29 +263,25 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
         // }
         let mut borrow = node.0.borrow_mut();
         match math::test_intersection(borrow.cube, sample.pos, sample.radius + self.radius) {
-            Intersection::Out => {
-                0.0
-            }
-            Intersection::In => {
-                borrow.volume
-            }
-            Intersection::Over => {
+            Out => 0.,
+            In => borrow.volume,
+            Over => {
+                let mut result = 0.;
                 if borrow.is_leaf() {
                     borrow.samples.push(sample);
-                    return 0.0;
+                } else {
+                    borrow.childs.retain(|child| {
+                        let delta = self.update(child, sample);
+                        result += delta;
+                        let mut child_borrow = child.0.borrow_mut();
+                        if delta < child_borrow.volume {
+                            child_borrow.volume -= delta;
+                            true
+                        } else {
+                            false
+                        }
+                    });
                 }
-                let mut result = 0.0;
-                borrow.childs.retain(|child| {
-                    let delta = self.update(child, sample);
-                    result += delta;
-                    let mut child_borrow = child.0.borrow_mut();
-                    if delta < child_borrow.volume {
-                        child_borrow.volume -= delta;
-                        true
-                    } else {
-                        false
-                    }
-                });
                 result
             }
         }
@@ -246,143 +289,18 @@ impl <R: Rng, V: VecLike<V>> PoissonDisk<R, V> {
 }
 
 /// Describes position of sample and radius of disk around it.
-#[derive(PartialEq, Clone, Copy)]
-pub struct Sample<T: VecLike<T>> {
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub struct Sample<T: VecLike> {
     pub pos: T,
     radius: f64,
 }
 
-impl<T: VecLike<T>> Sample<T> {
+impl<T: VecLike> Sample<T> {
     pub fn new(pos: T, radius: f64) -> Self {
         Sample{pos: pos, radius: radius}
     }
 
     pub fn radius(&self) -> f64 {
         self.radius
-    }
-}
-
-impl<T: VecLike<T>> Debug for Sample<T> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "{:}:{:?}", self.radius, self.pos)
-    }
-}
-
-#[derive(Clone)]
-struct Node<T: VecLike<T>>(Rc<RefCell<InnerNode<T>>>);
-
-struct InnerNode<T: VecLike<T>> {
-    childs: Vec<Node<T>>,
-    samples: Vec<Sample<T>>,
-    cube: Hypercube<T>,
-    volume: f64,
-}
-
-impl<T: VecLike<T>> Debug for Node<T> {
-    fn fmt(&self, f: &mut Formatter) -> FmtResult {
-        write!(f, "{:?}", self.0.borrow().childs)
-    }
-}
-
-impl<T: VecLike<T>> Node<T> {
-    fn new(cube: Hypercube<T>) -> Node<T> {
-        Node(Rc::new(RefCell::new(InnerNode{
-                childs: Vec::with_capacity(0),
-                samples: Vec::with_capacity(0),
-                volume: cube.volume(),
-                cube: cube,
-            })))
-    }
-
-    #[allow(unused_variables)]
-    fn with_samples(cube: Hypercube<T>, samples: usize) -> Node<T> {
-        Node(Rc::new(RefCell::new(InnerNode{
-                childs: Vec::with_capacity(0),
-                samples: Vec::with_capacity(samples),
-                volume: cube.volume(),
-                cube: cube,
-            })))
-    }
-
-    //TODO: If there is only one child left for us we could compress by removing child and taking it's children? Max depth should then be checked via side and not by depth.
-    fn reduce(&self, parent: Option<&Node<T>>, amount: f64) {
-        let mut borrow = self.0.borrow_mut();
-        if amount < borrow.volume {
-            borrow.volume -= amount;
-            // if borrow.childs.len() == 1 {
-            //     let child = borrow.childs.remove(0);
-            //     {
-            //         let mut child_borrow = child.0.borrow_mut();
-            //         if child_borrow.childs.len() > 0 {
-            //             child_borrow.parent = None;
-            //             for c in &mut child_borrow.childs {
-            //                 let mut c_borrow = c.0.borrow_mut();
-            //                 c_borrow.parent = Some(self.clone());
-            //                 borrow.childs.push(c.clone());
-            //             }
-            //             child_borrow.childs.clear();
-            //         }
-            //     }
-            //     if borrow.childs.is_empty() {
-            //         borrow.childs.push(child);
-            //     }
-            // }
-        } else {
-            borrow.childs.clear();
-            borrow.samples.clear();
-            borrow.volume = 0.0;
-            drop(borrow);
-            if let Some(p) = parent {
-                p.0.borrow_mut().childs.retain(|a| a.0.borrow().volume > 0.0);
-            }
-        }
-    }
-
-    fn create_childs(&self) -> Vec<Node<T>> {
-        let borrow = self.0.borrow();
-        let dim = T::dim(None);
-        let childs = 2usize.pow(dim as u32);
-        let mut result = Vec::with_capacity(childs);
-        for n in 0..childs {
-            result.push(Node::with_samples(borrow.child_cube(n), borrow.samples.len()));
-        }
-        result
-    }
-}
-
-impl<T: VecLike<T>> PartialEq for InnerNode<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.cube == other.cube
-    }
-}
-
-impl<T: VecLike<T>> InnerNode<T> {
-    fn is_empty(&self) -> bool {
-        self.childs.is_empty() && self.samples.is_empty() && self.volume == 0.0
-    }
-
-    fn is_leaf(&self) -> bool {
-        self.childs.is_empty()
-    }
-
-    fn is_sample_valid(&self, sample: Sample<T>) -> bool {
-        self.samples.iter().all(|s| (s.pos - sample.pos).sqnorm() >= (s.radius + sample.radius).powi(2))
-    }
-
-    fn child_cube(&self, n: usize) -> Hypercube<T> {
-        let center = self.cube.center();
-        let min = Self::calc(n, self.cube.min, center);
-        let max = Self::calc(n, center, self.cube.max);
-        Hypercube::new(min, max)
-    }
-
-    fn calc(bits: usize, a: T, b: T) -> T {
-        let mut t = T::zero();
-        let dim = T::dim(None);
-        for n in 0..dim {
-            let bit = (bits >> n) & 1;
-            t[n] = if bit == 0 { a } else { b }[n];
-        }
-        t
     }
 }
