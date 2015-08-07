@@ -11,7 +11,8 @@ VecLike describes what traits from std, nalgebra and num crates are needed to be
 When building a PoissonDisk periodicity can be set from builder to make the distribution to wrap around.    
 
 When PoissonGen is created using build_samples the algorithm calculates approximately the radius that is needed to create distribution with that many samples.    
-Building of PoissonDisk with method build_samples for non-perioditic distributions is currently restricted to 2, 3 and 4 dimensions (due need of contanstants for each dimension).    
+Building of PoissonDisk with method build_samples for non-perioditic distributions is currently restricted to 2, 3 and 4 dimensions (due need of contanstants for each dimension).  
+
 Samples can be given to the method for creating distribution to make it take those account when creating the distribution.    
 
 Documentation is [here](https://WaDelma.github.io/poisson/)    
