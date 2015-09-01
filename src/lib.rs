@@ -8,6 +8,8 @@
 
 extern crate rand;
 use rand::{Rand, Rng};
+use rand::distributions::range::Range;
+use rand::distributions::IndependentSample;
 
 extern crate num;
 use num::{Zero, One};
@@ -152,7 +154,70 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
     /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
     pub fn generate(&mut self, points: &mut Vec<Sample<V>>) {
-        let tree = Node::new(Hypercube::new(V::zero(), V::one()));
+        let dim = V::dim(None);
+        let cell_width = self.radius / (dim as f64).sqrt();
+        let mut grid = vec![None; (1. / cell_width) as usize * dim];
+        let capacity = grid.len() * dim;
+        let mut indices = Vec::with_capacity(capacity);
+        indices.extend((0..grid.len()));
+        let mut level = 0;
+        let max_level = 63;
+        let a = 0.3;
+        while !indices.is_empty() && level < max_level {
+            let mut range = Range::new(0, indices.len());
+            for _ in 0..((a * grid.len() as f64) as usize) {
+                let index = range.ind_sample(&mut self.rand);
+                if let Some(_) = grid[Self::get_parent(index, level)] {
+                    indices.swap_remove(index);
+                    range = Range::new(0, indices.len());
+                } else {
+                    let c = self.choose_random_point(indices[index], level);
+                    if Self::is_disk_free(&grid, index, level, c) {
+                        grid[Self::get_parent(index, level)] = Some(c);
+                        indices.swap_remove(index);
+                    }
+                }
+            }
+            let mut n = 0;
+            let mut len = indices.len();
+            let mut added = 0;
+            while n < len {
+                let index = indices[n];
+                let mut first = true;
+                for child in Self::childs(index, level) {
+                    if !Self::covered(&grid, child, level + 1) {
+                        if first {
+                            // If inserting first child we can just replace the parent
+                            first = false;
+                            indices[n] = child;
+                        } else {
+                            // Otherwise we just push the child to the end and keep tally how many times we have done this
+                            indices.push(child);
+                            added += 1;
+                        }
+                    }
+                }
+                if first {
+                    // If all children were covered then we need to kill the parent
+                    indices.swap_remove(n);
+                    if added > 0 {
+                        // If we have added children already to the end, we need to skip the child we replaced the parent with
+                        added -= 1;
+                        n += 1;
+                    } else {
+                        // Otherwise we just deal the replaced parent in the next iteration
+                        len -= 1;
+                    }
+                } else {
+                    // If even one child was added, we have already replaced the parent and we can move forwards
+                    n += 1;
+                }
+            }
+            level += 1;
+            // If this assert fails then a is too small or subdivide code is broken
+            assert_eq!(capacity, indices.capacity());
+        }
+        /*let tree = Node::new(Hypercube::new(V::zero(), V::one()));
         for p in points.iter() {
             self.update_with_periodicity(&tree, None, *p);
         }
@@ -163,7 +228,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                 self.update_with_periodicity(&tree, None, s);
                 points.push(s);
             }
-        }
+        }*/
     }
 
     /// Sets the radius of the generator.
@@ -180,6 +245,27 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
 }
 
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
+
+    fn choose_random_point(&mut self, index: usize, level: usize) -> V {
+        V::zero()
+    }
+    
+    fn is_disk_free(grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
+        false
+    }
+
+    fn childs(index: usize, level: usize) -> Option<usize> {
+        None
+    }
+
+    fn covered(grid: &Vec<Option<V>>, index: usize, level: usize) -> bool {
+        false
+    }
+    
+    fn get_parent(index: usize, level: usize) -> usize {
+        0
+    }
+/*
     fn generate_sample(&mut self, node: &Node<V>, parent: Option<&Node<V>>, depth: u32) -> (f64, Option<Sample<V>>) {
         let borrow = node.0.borrow();
         if borrow.is_leaf() {
@@ -215,27 +301,27 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn subdivide(&self, node: &Node<V>) -> f64 {
-		let mut delta = 0.;
+        let mut delta = 0.;
         let mut childs = node.create_childs();
         let mut borrow = node.0.borrow_mut();
         childs.retain(|child| {
             let mut child_borrow = child.0.borrow_mut();
-        	for sample in &borrow.samples {
+            for sample in &borrow.samples {
                 match math::test_intersection(child_borrow.cube, sample.pos, sample.radius + self.radius) {
                     Over => child_borrow.samples.push(*sample),
                     In => {
-    			        delta += child_borrow.volume;
-    				    return false;
+                        delta += child_borrow.volume;
+                        return false;
                     }
                     Out => {}
                 }
-		    }
+            }
             true
         });
         borrow.childs = childs;
-		borrow.samples.clear();
-		delta
-	}
+        borrow.samples.clear();
+        delta
+    }
 
     fn update_with_periodicity(&self, node: &Node<V>, parent: Option<&Node<V>>, sample: Sample<V>) {
         if self.periodicity {
@@ -285,7 +371,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
                 result
             }
         }
-    }
+    }*/
 }
 
 /// Describes position of sample and radius of disk around it.
