@@ -171,7 +171,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                     indices.swap_remove(index);
                     range = Range::new(0, indices.len());
                 } else {
-                    let c = self.choose_random_point(indices[index], level);
+                    let c = self.choose_random_point(indices[index], level, cell_width);
                     if Self::is_disk_free(&grid, index, level, c) {
                         grid[Self::get_parent(index, level)] = Some(c);
                         indices.swap_remove(index);
@@ -217,6 +217,9 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
             // If this assert fails then a is too small or subdivide code is broken
             assert_eq!(capacity, indices.capacity());
         }
+	for sample in grid.iter().map(|v| Sample::new(v.unwrap(), self.radius)) {
+		points.push(sample);
+	}
         /*let tree = Node::new(Hypercube::new(V::zero(), V::one()));
         for p in points.iter() {
             self.update_with_periodicity(&tree, None, *p);
@@ -246,16 +249,20 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
 
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
-    fn choose_random_point(&mut self, index: usize, level: usize) -> V {
-        V::zero()
+    fn choose_random_point(&mut self, index: usize, level: usize, width: f64) -> V {
+        let side = 2f64.powi(-(level as f64)) * width;
     }
     
     fn is_disk_free(grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
         false
     }
 
-    fn childs(index: usize, level: usize) -> Option<usize> {
-        None
+    fn childs(index: usize, level: usize) -> Vec<usize> {
+        let childs = Vec::with_capacity(2.pow(V::dim(None)));
+        for i in 0..childs.capacity() {
+	    childs.push(index * childs.capacity() + i);
+        }
+        childs
     }
 
     fn covered(grid: &Vec<Option<V>>, index: usize, level: usize) -> bool {
@@ -263,7 +270,8 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
     
     fn get_parent(index: usize, level: usize) -> usize {
-        0
+	let split = 2.pow(V::dim(None));
+	index /= level * split
     }
 /*
     fn generate_sample(&mut self, node: &Node<V>, parent: Option<&Node<V>>, depth: u32) -> (f64, Option<Sample<V>>) {
