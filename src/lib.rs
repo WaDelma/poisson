@@ -250,7 +250,15 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
     fn choose_random_point(&mut self, index: usize, level: usize, width: f64) -> V {
+        let dim = T::dim(None);
+        let splits = 2.pow(dim);
         let side = 2f64.powi(-(level as f64)) * width;
+        let mut t = T::zero();
+        let coord = 
+        for n in 0..dim {
+            t[n] = f64::rand(self.rand).mul_add(side, coord[n]);
+        }
+        t
     }
     
     fn is_disk_free(grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
