@@ -25,6 +25,7 @@ pub trait VecLike:
     IndexMut<usize, Output = f64> +
     Add<Output = Self> +
     Sub<Output = Self> +
+    Mul<f64, Output = Self> +
     Div<f64, Output = Self> +
     Norm<f64> +
     PartialEq +
@@ -36,6 +37,7 @@ impl<T> VecLike for T where T:
     IndexMut<usize, Output = f64> +
     Add<Output = T> +
     Sub<Output = T> +
+    Mul<f64, Output = T> +
     Div<f64, Output = T> +
     Norm<f64> +
     PartialEq +
@@ -46,7 +48,7 @@ impl<T> VecLike for T where T:
 
 use std::cmp::PartialEq;
 use std::mem::drop;
-use std::ops::{Sub, Add, Div, IndexMut};
+use std::ops::{Sub, Mul, Add, Div, IndexMut};
 use std::marker::PhantomData;
 
 use tree::Node;
@@ -156,7 +158,8 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     pub fn generate(&mut self, points: &mut Vec<Sample<V>>) {
         let dim = V::dim(None);
         let cell_width = self.radius / (dim as f64).sqrt();
-        let mut grid = vec![None; (1. / cell_width) as usize * dim];
+        let cells_for_dim = (1. / cell_width) as usize;
+        let mut grid = vec![None; cells_for_dim.pow(dim as u32)];
         let capacity = grid.len() * dim;
         let mut indices = Vec::with_capacity(capacity);
         indices.extend((0..grid.len()));
@@ -185,7 +188,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                 let index = indices[n];
                 let mut first = true;
                 for child in Self::childs(index, level) {
-                    if !Self::covered(&grid, child, level + 1) {
+                    if !self.covered(&grid, child, level + 1, cells_for_dim, cell_width) {
                         if first {
                             // If inserting first child we can just replace the parent
                             first = false;
@@ -218,7 +221,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
             assert_eq!(capacity, indices.capacity());
         }
 	for sample in grid.iter().map(|v| Sample::new(v.unwrap(), self.radius)) {
-		points.push(sample);
+	    points.push(sample);
 	}
         /*let tree = Node::new(Hypercube::new(V::zero(), V::one()));
         for p in points.iter() {
@@ -250,36 +253,101 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
     fn choose_random_point(&mut self, index: usize, level: usize, width: f64) -> V {
-        let dim = T::dim(None);
-        let splits = 2.pow(dim);
-        let side = 2f64.powi(-(level as f64)) * width;
-        let mut t = T::zero();
-        let coord = 
+        let dim = V::dim(None);
+        let cells_for_dim = 2f64.powf(-(level as f64)) as usize;
+        let side = cells_for_dim as f64 * width;
+        let mut t = Self::decode(index, cells_for_dim);
         for n in 0..dim {
-            t[n] = f64::rand(self.rand).mul_add(side, coord[n]);
+            let place = f64::rand(&mut self.rand);
+            t[n] = t[n] + place * side;//mul_add
         }
         t
     }
     
     fn is_disk_free(grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
+        let to_be_checked = [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (1, -1), (-1, -1), (-1, 1), (2, 0), (0, 2), (-2, 0), (0, -2), (2, 1), (2, -1), (-2, -1), (-2, 1), (1, 2), (-1, 2), (-1, -2), (1, -2)];
+        for (a, b) in to_be_checked {
+            //TODO
+        }
         false
     }
 
     fn childs(index: usize, level: usize) -> Vec<usize> {
-        let childs = Vec::with_capacity(2.pow(V::dim(None)));
-        for i in 0..childs.capacity() {
-	    childs.push(index * childs.capacity() + i);
+        let child_amount = 2usize.pow(V::dim(None) as u32);
+        let mut childs = Vec::with_capacity(child_amount);
+        for i in 0..child_amount {
+	    childs.push(index * child_amount + i);
         }
         childs
     }
 
-    fn covered(grid: &Vec<Option<V>>, index: usize, level: usize) -> bool {
-        false
+    fn covered(&self, grid: &Vec<Option<V>>, index: usize, level: usize, cells: usize, width: f64) -> bool {
+        let parent = Self::get_parent(index, level);
+        Self::for_each_combination(&[-1., 0., 1.], |t| {
+            let index = parent + Self::encode(&t, cells);
+            if let Some(s) = grid[index] {
+                 if self.do_it(&s, index, width, level) {
+                     return Some(true);
+                 }
+            }
+        None
+        }).unwrap_or(false)
+    }
+
+    fn do_it(&self, v: &V, index: usize, width: f64, level: usize) -> bool {
+        let cells_for_dim = 2f64.powf(-(level as f64)) as usize;
+        let side = cells_for_dim as f64 * width;
+        let sqradius = self.radius.powi(2);
+        let mut base = Self::decode(index, cells_for_dim);
+        Self::for_each_combination(&[-1., 1.], |t| {
+             let vec = (base + t) * side;
+             if vec.sqnorm() > sqradius {
+                 Some(false)
+             } else {
+                 None
+             }
+        }).unwrap_or(true)
+    }
+
+    fn for_each_combination<T, F: Fn(V) -> Option<T>>(choices: &[f64], func: F) -> Option<T> {
+        let dim = V::dim(None);
+        for n in 0..choices.len().pow(dim as u32) {
+            let mut t = V::zero();
+            let mut div = n;
+            for n in 0..dim {
+                let rem = div % choices.len();
+                div /= choices.len();
+                t[n] = choices[rem as usize];
+            }
+            if let s @ Some(_) = (func)(t) {
+                return s;
+            }
+        }
+        None
     }
     
     fn get_parent(index: usize, level: usize) -> usize {
-	let split = 2.pow(V::dim(None));
-	index /= level * split
+	let split = 2usize.pow(V::dim(None) as u32);
+	index / ((level + 1) * split)
+    }
+
+    fn encode(v: &V, level: usize) -> usize {
+        let mut index = 0;
+        for n in 0..V::dim(None) {
+            index = (index + v[n] as usize) * level;
+        }
+        index / level
+    }
+
+    fn decode(index: usize, width: usize) -> V {
+        let mut result = V::zero();
+        let mut last = index;
+        for n in (0..V::dim(None)).rev() {
+            let cur = last / width;
+            result[n] = (last - cur * width) as f64;
+            last = cur;
+        }
+        result
     }
 /*
     fn generate_sample(&mut self, node: &Node<V>, parent: Option<&Node<V>>, depth: u32) -> (f64, Option<Sample<V>>) {
