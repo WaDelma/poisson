@@ -50,6 +50,7 @@ use std::cmp::PartialEq;
 use std::mem::drop;
 use std::ops::{Sub, Mul, Add, Div, IndexMut};
 use std::marker::PhantomData;
+use std::iter::IntoIterator;
 
 use tree::Node;
 
@@ -172,55 +173,29 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                 let index = range.ind_sample(&mut self.rand);
                 if let Some(_) = grid[Self::get_parent(index, level)] {
                     indices.swap_remove(index);
+                    if indices.is_empty() {
+                        break;
+                    }
                     range = Range::new(0, indices.len());
                 } else {
                     let c = self.choose_random_point(indices[index], level, cell_width);
-                    if self.is_disk_free(&grid, index, level, c) {
+                    if self.is_disk_free(&grid, index, level, c, cells_for_dim) {
                         grid[Self::get_parent(index, level)] = Some(c);
                         indices.swap_remove(index);
+                        range = Range::new(0, indices.len());
                     }
                 }
             }
-            let mut n = 0;
-            let mut len = indices.len();
-            let mut added = 0;
-            while n < len {
-                let index = indices[n];
-                let mut first = true;
-                for child in Self::childs(index, level) {
-                    if !self.covered(&grid, child, level + 1, cells_for_dim, cell_width) {
-                        if first {
-                            // If inserting first child we can just replace the parent
-                            first = false;
-                            indices[n] = child;
-                        } else {
-                            // Otherwise we just push the child to the end and keep tally how many times we have done this
-                            indices.push(child);
-                            added += 1;
-                        }
-                    }
-                }
-                if first {
-                    // If all children were covered then we need to kill the parent
-                    indices.swap_remove(n);
-                    if added > 0 {
-                        // If we have added children already to the end, we need to skip the child we replaced the parent with
-                        added -= 1;
-                        n += 1;
-                    } else {
-                        // Otherwise we just deal the replaced parent in the next iteration
-                        len -= 1;
-                    }
-                } else {
-                    // If even one child was added, we have already replaced the parent and we can move forwards
-                    n += 1;
-                }
-            }
+            flat_map_inplace(&mut indices, |i| {
+                Self::childs(i, level)
+                    .into_iter()
+                    .filter(|&c| self.covered(&grid, c, level, cells_for_dim, cell_width))
+            });
             level += 1;
             // If this assert fails then a is too small or subdivide code is broken
-            assert_eq!(capacity, indices.capacity());
+            // assert_eq!(capacity, indices.capacity());
         }
-	for sample in grid.iter().map(|v| Sample::new(v.unwrap(), self.radius)) {
+	for sample in grid.iter().filter_map(|v| *v).map(|v| Sample::new(v, self.radius)) {
 	    points.push(sample);
 	}
         /*let tree = Node::new(Hypercube::new(V::zero(), V::one()));
@@ -250,12 +225,21 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 }
 
+fn flat_map_inplace<T, F, I>(vec: &mut Vec<T>, multi_map: F)
+                            where F: Fn(T) -> I, I: IntoIterator<Item=T> {
+    for i in (0..vec.len()).rev() {
+        for t in multi_map(vec.swap_remove(i)) {
+            vec.push(t);
+        }
+    }
+}
+
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
     fn choose_random_point(&mut self, index: usize, level: usize, width: f64) -> V {
         let dim = V::dim(None);
-        let cells_for_dim = 2f64.powf(-(level as f64)) as usize;
-        let side = cells_for_dim as f64 * width;
+        let cells_for_dim = 2usize.pow(level as u32);
+        let side = width / cells_for_dim as f64;
         let mut t = Self::decode(index, cells_for_dim);
         for n in 0..dim {
             let place = f64::rand(&mut self.rand);
@@ -264,16 +248,16 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         t
     }
 
-    fn is_disk_free(&self, grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
-        let parent = Self::get_parent(index, level);
+    fn is_disk_free(&self, grid: &Vec<Option<V>>, index: usize, level: usize, c: V, top_lvl_side: usize) -> bool {
+        let parent = Self::decode(Self::get_parent(index, level), top_lvl_side);
         let sqradius = self.radius.powi(2);
         //TODO: Does unnessary checking...
         Self::for_each_combination(&[-2., -1., 0., -1., -2.], |t| {
-            //TODO: At the edge of grid this will undeflow or overflow
-            let index = parent + Self::encode(&t, level);
-            if let Some(s) = grid[index] {
-                if (s - c).sqnorm() < sqradius {
-                    return Some(false);
+            if let Some(i) = Self::encode(&(parent + t), top_lvl_side) {
+                if let Some(s) = grid[i] {
+                    if (s - c).sqnorm() < sqradius {
+                        return Some(false);
+                    }
                 }
             }
             None
@@ -289,24 +273,25 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         childs
     }
 
-    fn covered(&self, grid: &Vec<Option<V>>, index: usize, level: usize, cells: usize, width: f64) -> bool {
-        let parent = Self::get_parent(index, level);
+    fn covered(&self, grid: &Vec<Option<V>>, index: usize, level: usize, top_lvl_side: usize, width: f64) -> bool {
+        let parent = Self::decode(Self::get_parent(index, level), top_lvl_side);
         Self::for_each_combination(&[-1., 0., 1.], |t| {
-            let index = parent + Self::encode(&t, cells);
-            if let Some(s) = grid[index] {
-                 if self.do_it(&s, index, width, level) {
-                     return Some(true);
-                 }
+            if let Some(i) = Self::encode(&(parent + t), top_lvl_side) {
+                if let Some(s) = grid[i] {
+                    if self.do_it(&s, i, width, level) {
+                        return Some(true);
+                    }
+                }
             }
         None
         }).unwrap_or(false)
     }
 
     fn do_it(&self, v: &V, index: usize, width: f64, level: usize) -> bool {
-        let cells_for_dim = 2f64.powf(-(level as f64)) as usize;
-        let side = cells_for_dim as f64 * width;
+        let cells_for_dim = 2usize.pow(level as u32);
+        let side = width / cells_for_dim as f64;
         let sqradius = self.radius.powi(2);
-        let mut base = Self::decode(index, cells_for_dim);
+        let base = Self::decode(index, cells_for_dim);
         Self::for_each_combination(&[-1., 1.], |t| {
              let vec = (base + t) * side;
              if vec.sqnorm() > sqradius {
@@ -335,17 +320,24 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn get_parent(index: usize, level: usize) -> usize {
-        let split = 2usize.pow(V::dim(None) as u32);
-        index / ((level + 1) * split)
+        let dim = V::dim(None);
+        let cells_for_dim = 2usize.pow(dim as u32);
+        let mut i = Self::decode(index, cells_for_dim);
+        for n in 0..dim {
+            i[n] = (i[n] / cells_for_dim as f64).floor();
+        }
+        Self::encode(&i, cells_for_dim).unwrap()
     }
 
-    fn encode(v: &V, level: usize) -> usize {
-        let cells_for_dim = 2f64.powf(-(level as f64)) as usize;
+    fn encode(v: &V, width: usize) -> Option<usize> {
         let mut index = 0;
         for n in 0..V::dim(None) {
-            index = (index + v[n] as usize) * cells_for_dim;
+            if v[n] < 0. || v[n] >= width as f64 {
+                return None;
+            }
+            index = (index + v[n] as usize) * width;
         }
-        index / level
+        Some(index / width as usize)
     }
 
     fn decode(index: usize, width: usize) -> V {
