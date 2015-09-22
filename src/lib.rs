@@ -175,7 +175,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                     range = Range::new(0, indices.len());
                 } else {
                     let c = self.choose_random_point(indices[index], level, cell_width);
-                    if Self::is_disk_free(&grid, index, level, c) {
+                    if self.is_disk_free(&grid, index, level, c) {
                         grid[Self::get_parent(index, level)] = Some(c);
                         indices.swap_remove(index);
                     }
@@ -263,20 +263,28 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         }
         t
     }
-    
-    fn is_disk_free(grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
-        let to_be_checked = [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (1, -1), (-1, -1), (-1, 1), (2, 0), (0, 2), (-2, 0), (0, -2), (2, 1), (2, -1), (-2, -1), (-2, 1), (1, 2), (-1, 2), (-1, -2), (1, -2)];
-        for (a, b) in to_be_checked {
-            //TODO
-        }
-        false
+
+    fn is_disk_free(&self, grid: &Vec<Option<V>>, index: usize, level: usize, c: V) -> bool {
+        let parent = Self::get_parent(index, level);
+        let sqradius = self.radius.powi(2);
+        //TODO: Does unnessary checking...
+        Self::for_each_combination(&[-2., -1., 0., -1., -2.], |t| {
+            //TODO: At the edge of grid this will undeflow or overflow
+            let index = parent + Self::encode(&t, level);
+            if let Some(s) = grid[index] {
+                if (s - c).sqnorm() < sqradius {
+                    return Some(false);
+                }
+            }
+            None
+        }).unwrap_or(true)
     }
 
     fn childs(index: usize, level: usize) -> Vec<usize> {
         let child_amount = 2usize.pow(V::dim(None) as u32);
         let mut childs = Vec::with_capacity(child_amount);
         for i in 0..child_amount {
-	    childs.push(index * child_amount + i);
+            childs.push(index * child_amount + i);
         }
         childs
     }
@@ -325,16 +333,17 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         }
         None
     }
-    
+
     fn get_parent(index: usize, level: usize) -> usize {
-	let split = 2usize.pow(V::dim(None) as u32);
-	index / ((level + 1) * split)
+        let split = 2usize.pow(V::dim(None) as u32);
+        index / ((level + 1) * split)
     }
 
     fn encode(v: &V, level: usize) -> usize {
+        let cells_for_dim = 2f64.powf(-(level as f64)) as usize;
         let mut index = 0;
         for n in 0..V::dim(None) {
-            index = (index + v[n] as usize) * level;
+            index = (index + v[n] as usize) * cells_for_dim;
         }
         index / level
     }
