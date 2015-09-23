@@ -1,9 +1,10 @@
 use VecLike;
-use rand::{Rand, Rng};
-use num::Zero;
+//use rand::{Rand, Rng};
+//use num::Zero;
 use na::Dim;
 use std::f64::consts::PI;
 
+/*
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Hypercube<T>  {
     pub min: T,
@@ -92,7 +93,7 @@ pub fn test_intersection<T: VecLike>(rect: Hypercube<T>, sample: T, radius: f64)
         return Over;
     }
     return In;
-}
+}*/
 
 lazy_static! {
     static ref MAX_PACKING_DENSITIES: [f64; 7] = [
