@@ -47,23 +47,13 @@ impl<T> VecLike for T where T:
     Copy {}
 
 use std::cmp::PartialEq;
-//use std::mem::drop;
 use std::ops::{Sub, Mul, Add, Div, IndexMut};
 use std::marker::PhantomData;
 use std::iter::IntoIterator;
 
-//use tree::Node;
-
-//use math::Hypercube;
-//use math::Intersection::*;
-
-//mod tree;
 mod math;
 #[cfg(test)]
 mod test;
-
-// This means that last subdivide gives cubes which side is the smallest possible subnormal positive double.
-//const MAX_DEPTH: u32 = 1074;
 
 /// Generates poisson-disk distribution in [0, 1]² area with O(N log N) time and space complexity relative to the number of samples generated.
 /// Based on Gamito, Manuel N., and Steve C. Maddock. "Accurate multidimensional Poisson-disk sampling." ACM Transactions on Graphics (TOG) 29.1 (2009): 8.
@@ -174,7 +164,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
             for _ in 0..throws {
                 let index = range.ind_sample(&mut self.rand);
                 let cur = indices[index];
-                let parent_v = Self::get_parent(cur, level, top_lvl_side);
+                let parent_v = get_parent::<V>(cur, level, top_lvl_side).unwrap();
                 /*print!("(");
                 for n in 0..dim {
                     print!("{}, ", parent_v[n]);
@@ -188,7 +178,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                     }
                     range = Range::new(0, indices.len());
                 } else {
-                    let c = self.choose_random_point(cur, level, top_lvl_cell);
+                    let c = self.choose_random_point(cur, level, top_lvl_side, top_lvl_cell);
                     if self.is_disk_free(&grid, cur, level, c, top_lvl_side) {
                         grid[parent] = Some(c);
                         indices.swap_remove(index);
@@ -196,20 +186,19 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                     }
                 }
             }
-            flat_map_inplace(&mut indices, |i| {
-                //Self::childs(i, level)
+            flat_map_inplace(&mut indices, &|i| {
                 (0..child_amount)
                     .map(move |n| i * child_amount + n)
                     .filter(|&c| self.covered(&grid, c, level, top_lvl_side, top_lvl_cell))
-                    .inspect(move |c| if *c == 693237 {println!("found {} {}", i, level)})
+                    //.inspect(move |c| if *c == 693237 {println!("found {} {}", i, level)})
             });
             level += 1;
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
         }
-	for sample in grid.iter().filter_map(|v| *v).map(|v| Sample::new(v, self.radius)) {
-	    points.push(sample);
-	}
+	    for sample in grid.iter().filter_map(|v| *v).map(|v| Sample::new(v, self.radius)) {
+	        points.push(sample);
+	   }
     }
 
     /// Sets the radius of the generator.
@@ -225,13 +214,28 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 }
 
-fn flat_map_inplace<T, F, I>(vec: &mut Vec<T>, multi_map: F)
+fn flat_map_inplace<T, F, I>(vec: &mut Vec<T>, multi_map: &F)
                             where F: Fn(T) -> I, I: IntoIterator<Item=T> {
     for i in (0..vec.len()).rev() {
         for t in multi_map(vec.swap_remove(i)) {
             vec.push(t);
         }
     }
+}
+
+#[test]
+fn mapping_inplace_works() {
+    let vec = vec![1, 2, 3, 4, 5, 6];
+    let mut copy = vec.clone();
+    let func = |t| {
+        match t % 3 {
+            0 => (0..0),
+            1 => (0..1),
+            _ => (0..2),
+        }.map(move |n| t + n)
+    };
+    flat_map_inplace(&mut copy, &func);
+    assert_eq!(vec.iter().flat_map(|&c| func(c)).collect::<Vec<_>>().sort(), copy.sort());
 }
 
 fn encode<V: VecLike>(v: &V, side: usize) -> Option<usize> {
@@ -246,14 +250,15 @@ fn encode<V: VecLike>(v: &V, side: usize) -> Option<usize> {
 }
 
 fn decode<V: VecLike>(index: usize, side: usize) -> Option<V> {
+    let dim = V::dim(None);
+    if index >= side.pow(dim as u32) {
+        return None;
+    }
     let mut result = V::zero();
     let mut last = index;
-    for n in (0..V::dim(None)).rev() {
+    for n in (0..dim).rev() {
         let cur = last / side;
         let value = (last - cur * side) as f64;
-        if value < 0. || value >= side as f64 {
-            return None;
-        }
         result[n] = value;
         last = cur;
     }
@@ -263,6 +268,12 @@ fn decode<V: VecLike>(index: usize, side: usize) -> Option<V> {
 #[test]
 fn encoding_decoding_works() {
     let n = na::Vec2::new(10., 7.);
+    assert_eq!(n, decode(encode(&n, 15).unwrap(), 15).unwrap());
+}
+
+#[test]
+fn encoding_decoding_at_edge_works() {
+    let n = na::Vec2::new(14., 14.);
     assert_eq!(n, decode(encode(&n, 15).unwrap(), 15).unwrap());
 }
 
@@ -277,23 +288,58 @@ fn decoding_outside_of_area_fails() {
     assert_eq!(None, decode::<na::Vec2<f64>>(9000, 10));
 }
 
+fn get_parent<V: VecLike>(index: usize, level: usize, top_lvl_side: usize) -> Option<V> {
+    let dim = V::dim(None);
+    let split = 2usize.pow(level as u32);
+    assert!(decode::<V>(index, split * top_lvl_side).is_some());
+    decode::<V>(index, split * top_lvl_side)
+        .map(|mut r| {
+            for n in 0..dim {
+                r[n] = (r[n] / split as f64).floor();
+            }
+            r
+        })
+}
+
+#[test]
+fn getting_parent_works() {
+    let cells_per_side = 3;
+    let divides = 4;
+    let cells_per_cell = 2usize.pow(divides as u32);
+    let cells_per_side_divided = cells_per_side * cells_per_cell;
+    let testee = na::Vec2::new(1., 2.);
+    let index = encode(&((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.)), cells_per_side_divided).unwrap();
+    assert_eq!(Some(testee), get_parent(index, divides, cells_per_side));
+}
+
+#[test]
+fn getting_parent_outside_of_area_fails() {
+    let cells_per_side = 3;
+    let divides = 4;
+    let cells_per_cell = 2usize.pow(divides as u32);
+    let cells_per_side_divided = cells_per_side * cells_per_cell;
+    let testee = na::Vec2::new(1., 3.);
+    let index = encode(&((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.)), cells_per_side_divided).unwrap();
+    assert_eq!(None::<na::Vec2<f64>>, get_parent(index, divides, cells_per_side));
+}
 
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
-    fn choose_random_point(&mut self, index: usize, level: usize, top_lvl_cell: f64) -> V {
+    fn choose_random_point(&mut self, index: usize, level: usize, top_lvl_side: usize, top_lvl_cell: f64) -> V {
         let dim = V::dim(None);
         let side = 2usize.pow(level as u32);
         let spacing = top_lvl_cell / side as f64;
-        let mut result = decode::<V>(index, side).unwrap();
+        assert!(decode::<V>(index, side * top_lvl_side).is_some());
+        let mut result = decode::<V>(index, side * top_lvl_side).unwrap();
         for n in 0..dim {
             let place = f64::rand(&mut self.rand);
-            result[n] = result[n] + place * spacing;//mul_add
+            result[n] += place * spacing;//mul_add
         }
         result
     }
 
     fn is_disk_free(&self, grid: &Vec<Option<V>>, index: usize, level: usize, c: V, top_lvl_side: usize) -> bool {
-        let parent = Self::get_parent(index, level, top_lvl_side);
+        let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
         let sqradius = self.radius.powi(2);
         //TODO: Does unnessary checking...
         Self::for_each_combination(&[-2., -1., 0., -1., -2.], |t| {
@@ -309,7 +355,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn covered(&self, grid: &Vec<Option<V>>, index: usize, level: usize, top_lvl_side: usize, top_lvl_cell: f64) -> bool {
-        let parent = Self::get_parent(index, level, top_lvl_side);
+        let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
         Self::for_each_combination(&[-1., 0., 1.], |t| {
             if let Some(i) = encode(&(parent + t), top_lvl_side) {
                 if let Some(s) = grid[i] {
@@ -326,14 +372,15 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         let side = 2usize.pow(level as u32);
         let spacing = top_lvl_cell / side as f64;
         let sqradius = self.radius.powi(2);
+        assert!(decode::<V>(index, side).is_some());
         let base = decode::<V>(index, side).unwrap();
         Self::for_each_combination(&[-1., 1.], |t| {
-             let vec = (base + t) * spacing;
-             if vec.sqnorm() > sqradius {
-                 Some(false)
-             } else {
-                 None
-             }
+            let vec = (base + t) * spacing;
+            if (vec - *v).sqnorm() >= sqradius {
+                Some(false)
+            } else {
+                None
+            }
         }).unwrap_or(true)
     }
 
@@ -352,17 +399,6 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
             }
         }
         None
-    }
-
-    fn get_parent(index: usize, level: usize, top_lvl_side: usize) -> V {
-        let dim = V::dim(None);
-        let side = 2usize.pow(level as u32);
-        let mut result = decode::<V>(index, side).unwrap();
-        for n in 0..dim {
-            //println!("{} {}", result[n], result[n] / top_lvl_side as f64);
-            result[n] = (result[n] / top_lvl_side as f64).floor();
-        }
-        result
     }
 
 }
