@@ -180,7 +180,6 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                 panic!();
             }
             println!("{}/63, {}/{}, {}/{}", level, indices.len(), (top_lvl_side * 2usize.pow(level as u32)).pow(dim as u32), grid.iter().filter(|n| n.is_some()).count(), grid.len());
-            debug::visualise(level, &grid, top_lvl_side, &indices, top_lvl_cell, self.radius);
             let mut range = Range::new(0, indices.len());
             let throws = (a * indices.len() as f64) as usize;
             for _ in 0..throws {
@@ -201,7 +200,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                     }
                     range = Range::new(0, indices.len());
                 } else {
-                    let c = self.choose_random_point(cur, level, top_lvl_side, top_lvl_cell);
+                    let c = choose_random_point(&mut self.rand, cur, level, top_lvl_side, top_lvl_cell);
                     if self.is_disk_free(&grid, cur, level, c, top_lvl_side) {
                         grid[parent] = Some(c);
                         indices.swap_remove(index);
@@ -209,6 +208,8 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                     }
                 }
             }
+
+            debug::visualise(level, &grid, top_lvl_side, &indices, top_lvl_cell, self.radius);
 
             let cells_per_cell = 2usize.pow(level as u32);
             let side = cells_per_cell * top_lvl_side;
@@ -229,7 +230,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                         }
                         println!(": {}", next_side);*/
                     })
-                    .filter(|&c| self.covered(&grid, c, level, top_lvl_side, top_lvl_cell))
+                    //.filter(|&c| self.covered(&grid, c, level, top_lvl_side, top_lvl_cell))
             });
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
@@ -240,21 +241,6 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
 
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
-    fn choose_random_point(&mut self, index: usize, level: usize, top_lvl_side: usize, top_lvl_cell: f64) -> V {
-        let dim = V::dim(None);
-        let side = 2usize.pow(level as u32);
-        let spacing = top_lvl_cell / side as f64;
-        //println!("{}, {}, {}, {}", side, spacing, level, top_lvl_cell);
-        assert!(decode::<V>(index, side * top_lvl_side).is_some());
-        let mut result = decode::<V>(index, side * top_lvl_side).unwrap() * spacing;
-        for n in 0..dim {
-            let place = f64::rand(&mut self.rand);
-            result[n] += place * spacing;//mul_add
-        }
-        //println!("{}, {}", debug::print_v(result), debug::print_v(decode::<V>(index, side * top_lvl_side).unwrap() * spacing));
-        result
-    }
-
     fn is_disk_free(&self, grid: &Vec<Option<V>>, index: usize, level: usize, c: V, top_lvl_side: usize) -> bool {
         assert!(get_parent::<V>(index, level, top_lvl_side).is_some());
         let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
@@ -263,6 +249,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         for t in each_combination(&[-2., -1., 0., -1., -2.]) {
             if let Some(i) = encode(&(parent + t), top_lvl_side) {
                 if let Some(s) = grid[i] {
+                    //println!("idf: {}, {}", debug::print_v(s), debug::print_v(c));
                     if (s - c).sqnorm() < sqradius {
                         return false;
                     }
@@ -302,6 +289,36 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         true
     }
 
+}
+
+fn choose_random_point<V: VecLike, R: Rng>(rand: &mut R, index: usize, level: usize, top_lvl_side: usize, top_lvl_cell: f64) -> V {
+    let dim = V::dim(None);
+    let side = 2usize.pow(level as u32);
+    let spacing = top_lvl_cell / side as f64;
+    assert!(decode::<V>(index, side * top_lvl_side).is_some());
+    let mut result = decode::<V>(index, side * top_lvl_side).unwrap() * spacing;
+    for n in 0..dim {
+        let place = f64::rand(rand);
+        result[n] += place * spacing;//mul_add
+    }
+    result
+}
+
+#[test]
+fn random_point_is_between_right_values_top_lvl() {
+    use rand::{SeedableRng, XorShiftRng};
+    let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
+    let dim  = 2;
+    let radius = 0.2;
+    let top_lvl_cell = radius / (dim as f64).sqrt();
+    let top_lvl_side = (1. / top_lvl_cell) as usize;
+    for _ in 0..1000 {
+        let result = choose_random_point::<na::Vec2<f64>, _>(&mut rand, 0, 0, top_lvl_side, top_lvl_cell);
+        assert!(result.x >= 0.);
+        assert!(result.x < top_lvl_cell);
+        assert!(result.y >= 0.);
+        assert!(result.y < top_lvl_cell);
+    }
 }
 
 fn encode<V: VecLike>(v: &V, side: usize) -> Option<usize> {
