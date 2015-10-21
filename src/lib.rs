@@ -176,9 +176,9 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         let max_level = 63;
         let a = 0.3;
         while !indices.is_empty() && level < max_level {
-            if level > 6 {
-                panic!();
-            }
+            // if level > 6 {
+            //     panic!();
+            // }
             println!("{}/63, {}/{}, {}/{}", level, indices.len(), (top_lvl_side * 2usize.pow(level as u32)).pow(dim as u32), grid.iter().filter(|n| n.is_some()).count(), grid.len());
             let mut range = Range::new(0, indices.len());
             let throws = (a * indices.len() as f64) as usize;
@@ -187,11 +187,6 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                 let cur = indices[index];
                 assert!(get_parent::<V>(cur, level, top_lvl_side).is_some());
                 let parent_v = get_parent::<V>(cur, level, top_lvl_side).unwrap();
-                /*print!("(");
-                for n in 0..dim {
-                    print!("{}, ", parent_v[n]);
-                }
-                println!(") {} {} {} {}", top_lvl_side, cur, level, index);*/
                 let parent = encode(&parent_v, top_lvl_side).unwrap();
                 if grid[parent].is_some() {
                     indices.swap_remove(index);
@@ -222,15 +217,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
                 let ind = decode::<V>(i, side).unwrap();
                 each_combination::<V>(choices)
                     .map(move |n| encode(&(n + ind * 2.), next_side).unwrap())
-                    .inspect(|n| {
-                        /*
-                        let xxx = decode::<V>(*n, next_side).unwrap();
-                        for j in 0..dim {
-                            print!("{}, ", xxx[j]);
-                        }
-                        println!(": {}", next_side);*/
-                    })
-                    //.filter(|&c| self.covered(&grid, c, level, top_lvl_side, top_lvl_cell))
+                    .filter(|&c| !self.covered(&grid, c, level, top_lvl_side, top_lvl_cell))
             });
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
@@ -246,16 +233,22 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
         let sqradius = self.radius.powi(2);
         //TODO: Does unnessary checking...
-        for t in each_combination(&[-2., -1., 0., -1., -2.]) {
+        for t in each_combination(&[-2., -1., 0., 1., 2.]) {
             if let Some(i) = encode(&(parent + t), top_lvl_side) {
                 if let Some(s) = grid[i] {
-                    //println!("idf: {}, {}", debug::print_v(s), debug::print_v(c));
                     if (s - c).sqnorm() < sqradius {
                         return false;
                     }
                 }
             }
         }
+        // for cc in 0..grid.len() {
+        //     if let Some(s) = grid[cc] {
+        //         if (s - c).sqnorm() < sqradius {
+        //             return false;
+        //         }
+        //     }
+        // }
         true
     }
 
