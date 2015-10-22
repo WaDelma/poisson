@@ -18,7 +18,7 @@ pub fn print_v<V: VecLike>(v: V) -> String {
 }
 
 pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, indices: &Vec<usize>, top_lvl_cell: f64, r: f64) {
-    let size = 2u32.pow(14);//512;
+    let size = 2u32.pow(10);//512;
     let samples: Vec<V> = grid.iter().filter_map(|v| *v).collect();
     let mut imgbuf = image::ImageBuffer::new(size, size);
 
@@ -29,18 +29,18 @@ pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, i
     let green = image::Rgb([0 as u8, 255 as u8, 0 as u8]);
     let middle = image::Rgb([255 as u8, 0 as u8, 0 as u8]);
     let cells_per_cell = 2usize.pow(level as u32);
-    let s = (cells_per_cell * side) as f64;
+    let full_side = cells_per_cell * side;
 
     let grid = (top_lvl_cell / cells_per_cell as f64) * size as f64;
     for i in indices {
-        let sample = decode::<V>(*i, s as usize).unwrap();
+        let sample = decode::<V>(*i, full_side as usize).unwrap();
         let x_start = (sample[0] * grid) as i32;
         let y_start = (sample[1] * grid) as i32;
         let x_end = ((sample[0] + 1.) * grid ) as i32;
         let y_end = ((sample[1] + 1.) * grid) as i32;
         for x in x_start..x_end {
             for y in y_start..y_end {
-                imgbuf.put_pixel(x as u32, y as u32, half);
+                draw_pixel(&mut imgbuf, size, x, y, half);
             }
         }
     }
@@ -61,7 +61,7 @@ pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, i
             }
         }
     }
-    let r = 0.5 * r;
+    //let r = 0.5 * r;
     for sample in samples {
         let xx = (sample[0] * size as f64) as i32;
         let yy = (sample[1] * size as f64) as i32;

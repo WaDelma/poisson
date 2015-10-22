@@ -28,6 +28,17 @@ fn test_2d_10_80_perioditic() {
 }
 
 #[test]
+fn test_2d_100_80_normal() {
+    test_with_samples::<Vec2>(100, 0.8, 400, false);
+}
+
+#[test]
+fn test_2d_100_80_perioditic() {
+    test_with_samples::<Vec2>(100, 0.8, 200, true);
+}
+
+
+#[test]
 fn test_2d_2th_prefilled_1th_normal() {
     let radius = 2f64.sqrt() / 2f64;
     test_with_seeds_prefill::<Vec2, _>(radius / 2f64, 800, false, &mut |ref mut v, i| {
