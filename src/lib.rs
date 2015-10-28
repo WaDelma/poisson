@@ -194,62 +194,70 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         let mut indices = Vec::with_capacity(capacity);
         indices.extend((0..grid.len()));
         let mut level = 0;
-        let max_level = 63;
-        let a = 0.3;
-        while !indices.is_empty() && level < max_level {
+        while !indices.is_empty() && level < 63 {
             // if level > 15 {
             //     panic!();
             // }
             //println!("{}/63, {}/{}, {}/{}", level, indices.len(), (top_lvl_side * 2usize.pow(level as u32)).pow(dim as u32), grid.iter().filter(|n| n.is_some()).count(), grid.len());
-            let mut range = Range::new(0, indices.len());
-            let throws = (a * indices.len() as f64) as usize;
-            for _ in 0..throws {
-                let index = range.ind_sample(&mut self.rand);
-                let cur = indices[index];
-                let parent_v = get_parent::<V>(cur, level, top_lvl_side).unwrap();
-                let parent = encode(&parent_v, top_lvl_side, self.periodicity).unwrap();
-                if grid[parent].is_some() {
-                    indices.swap_remove(index);
-                    if indices.is_empty() {
-                        break;
-                    }
-                    range = Range::new(0, indices.len());
-                } else {
-                    let c = choose_random_point(&mut self.rand, cur, level, top_lvl_side, top_lvl_cell);
-                    if self.is_disk_free(&grid, cur, level, c, top_lvl_side) {
-                        grid[parent] = Some(c);
-                        indices.swap_remove(index);
-                        if indices.is_empty() {
-                            break;
-                        }
-                        range = Range::new(0, indices.len());
-                    }
-                }
+            if self.throw_samples(&mut grid, &mut indices, level, top_lvl_side, top_lvl_cell, 0.3) {
+                //debug::visualise(level, &grid, top_lvl_side, &indices, top_lvl_cell, (2. * self.radius), self.periodicity);
+                self.subdivide(&mut grid, &mut indices, level, top_lvl_side, top_lvl_cell);
+                level += 1;
             }
-
-            //debug::visualise(level, &grid, top_lvl_side, &indices, top_lvl_cell, (2. * self.radius), self.periodicity);
-
-            let cells_per_cell = 2usize.pow(level as u32);
-            let side = cells_per_cell * top_lvl_side;
-            level += 1;
-            let next_cells_per_cell = 2usize.pow(level as u32);
-            let next_side = next_cells_per_cell * top_lvl_side;
-            let choices = &[0., 1.];
-            indices.flat_map_inplace(|i| {
-                let ind = decode::<V>(i, side).unwrap();
-                let periodicity = self.periodicity;
-                each_combination::<V>(choices)
-                    .map(move |n| encode(&(n + ind * 2.), next_side, periodicity).unwrap())
-                    .filter(|c| !self.covered(&grid, *c, level, top_lvl_side, top_lvl_cell))
-            });
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
         }
-        points.extend(grid.into_iter().filter_map(|v| v).map(|v| Sample::new(v, self.radius)));
+        points.extend(grid.into_iter()
+                        .filter_map(|v| v)
+                        .map(|v| Sample::new(v, self.radius)));
     }
 }
 
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
+
+    fn throw_samples(&mut self, grid: &mut Vec<Option<V>>, indices: &mut Vec<usize>, level: usize, top_lvl_side: usize, top_lvl_cell: f64, a: f64) -> bool {
+        let mut range = Range::new(0, indices.len());
+        let throws = (a * indices.len() as f64).ceil() as usize;
+        for _ in 0..throws {
+            let index = range.ind_sample(&mut self.rand);
+            let cur = indices[index];
+            let parent_v = get_parent::<V>(cur, level, top_lvl_side).unwrap();
+            let parent = encode(&parent_v, top_lvl_side, self.periodicity).unwrap();
+            if grid[parent].is_some() {
+                indices.swap_remove(index);
+                if indices.is_empty() {
+                    return false;
+                }
+                range = Range::new(0, indices.len());
+            } else {
+                let sample = choose_random_sample(&mut self.rand, cur, level, top_lvl_side, top_lvl_cell);
+                if self.is_disk_free(&grid, cur, level, sample, top_lvl_side) {
+                    grid[parent] = Some(sample);
+                    indices.swap_remove(index);
+                    if indices.is_empty() {
+                        return false;
+                    }
+                    range = Range::new(0, indices.len());
+                }
+            }
+        }
+        true
+    }
+
+    fn subdivide(&self, grid: &mut Vec<Option<V>>, indices: &mut Vec<usize>, level: usize, top_lvl_side: usize, top_lvl_cell: f64) {
+        let cells_per_cell = 2usize.pow(level as u32);
+        let side = cells_per_cell * top_lvl_side;
+        let next_cells_per_cell = 2usize.pow(level as u32 + 1);
+        let next_side = next_cells_per_cell * top_lvl_side;
+        let choices = &[0., 1.];
+        indices.flat_map_inplace(|i| {
+            let ind = decode::<V>(i, side).unwrap();
+            let periodicity = self.periodicity;
+            each_combination::<V>(choices)
+                .map(move |n| encode(&(n + ind * 2.), next_side, periodicity).unwrap())
+                .filter(|c| !self.covered(&grid, *c, level + 1, top_lvl_side, top_lvl_cell))
+        });
+    }
 
     fn is_disk_free(&self, grid: &Vec<Option<V>>, index: usize, level: usize, c: V, top_lvl_side: usize) -> bool {
         let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
@@ -291,7 +299,7 @@ fn sqdist<V: VecLike>(v1: V, v2: V, periodicity: bool) -> f64 {
     }
 }
 
-fn choose_random_point<V: VecLike, R: Rng>(rand: &mut R, index: usize, level: usize, top_lvl_side: usize, top_lvl_cell: f64) -> V {
+fn choose_random_sample<V: VecLike, R: Rng>(rand: &mut R, index: usize, level: usize, top_lvl_side: usize, top_lvl_cell: f64) -> V {
     let dim = V::dim(None);
     let side = 2usize.pow(level as u32);
     let spacing = top_lvl_cell / side as f64;
@@ -312,7 +320,7 @@ fn random_point_is_between_right_values_top_lvl() {
     let top_lvl_cell = radius / (dim as f64).sqrt();
     let top_lvl_side = (1. / top_lvl_cell) as usize;
     for _ in 0..1000 {
-        let result = choose_random_point::<na::Vec2<f64>, _>(&mut rand, 0, 0, top_lvl_side, top_lvl_cell);
+        let result = choose_random_sample::<na::Vec2<f64>, _>(&mut rand, 0, 0, top_lvl_side, top_lvl_cell);
         assert!(result.x >= 0.);
         assert!(result.x < top_lvl_cell);
         assert!(result.y >= 0.);
