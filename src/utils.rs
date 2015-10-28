@@ -2,7 +2,9 @@ use VecLike;
 
 use std::marker::PhantomData;
 
-pub struct CombiIter<'a, V> where V: VecLike {
+pub struct CombiIter<'a, V>
+    where V: VecLike
+{
     cur: usize,
     choices: &'a [f64],
     _marker: PhantomData<V>,
@@ -30,17 +32,24 @@ impl<'a, V> Iterator for CombiIter<'a, V> where V: VecLike {
 }
 
 pub fn each_combination<'a, V: VecLike>(choices: &[f64]) -> CombiIter<V> {
-    CombiIter{cur: 0, choices: choices, _marker: PhantomData}
+    CombiIter {
+        cur: 0,
+        choices: choices,
+        _marker: PhantomData,
+    }
 }
 
 pub trait Inplace<T> {
     fn flat_map_inplace<F, I>(&mut self, f: F)
-                                where I: IntoIterator<Item=T>, F: FnMut(T) -> I;
+        where I: IntoIterator<Item = T>,
+              F: FnMut(T) -> I;
 }
 
 impl<T> Inplace<T> for Vec<T> {
     fn flat_map_inplace<F, I>(&mut self, mut f: F)
-                                where I: IntoIterator<Item=T>, F: FnMut(T) -> I {
+        where I: IntoIterator<Item = T>,
+              F: FnMut(T) -> I
+    {
         for i in (0..self.len()).rev() {
             for t in f(self.swap_remove(i)) {
                 self.push(t);
@@ -58,7 +67,8 @@ fn mapping_inplace_works() {
             0 => (0..0),
             1 => (0..1),
             _ => (0..2),
-        }.map(move |n| t + n)
+        }
+        .map(move |n| t + n)
     };
     result.flat_map_inplace(&func);
     let mut expected = vec.into_iter().flat_map(func).collect::<Vec<_>>();

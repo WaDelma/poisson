@@ -1,4 +1,4 @@
-use ::{PoissonDisk, Sample, VecLike};
+use {PoissonDisk, Sample, VecLike};
 
 use rand::{SeedableRng, XorShiftRng};
 
@@ -11,7 +11,10 @@ mod dim2;
 mod dim3;
 mod dim4;
 
-fn test_with_samples<T: Debug + VecLike>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool) {
+fn test_with_samples<T: Debug + VecLike>(samples: u32,
+                                         relative_radius: f64,
+                                         seeds: u32,
+                                         periodicity: bool) {
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = PoissonDisk::new(rand);
@@ -44,7 +47,12 @@ fn test_with_samples<T: Debug + VecLike>(samples: u32, relative_radius: f64, see
     }
 }
 
-fn test_with_seeds_prefill<T: Debug + VecLike, F>(radius: f64, seeds: u32, periodicity: bool, filler: &mut F) where F: FnMut(&mut Vec<Sample<T>>, u32) {
+fn test_with_seeds_prefill<T: Debug + VecLike, F>(radius: f64,
+                                                  seeds: u32,
+                                                  periodicity: bool,
+                                                  filler: &mut F)
+    where F: FnMut(&mut Vec<Sample<T>>, u32)
+{
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = PoissonDisk::new(rand);
@@ -87,7 +95,14 @@ pub fn assert_legal_poisson<T: Debug + VecLike>(vecs: &Vec<Sample<T>>) {
             let diff = v1.pos - v2.pos;
             let dist = diff.norm();
             let allowed_dist = v1.radius() + v2.radius();
-            assert!(dist >= allowed_dist, "Poisson-disk distribution requirement not met: There exists 2 vectors with distance to each other of {} which is smaller than smallest allowed one {}. The samples: [{:?}, {:?}]", dist, allowed_dist, v1, v2);
+            assert!(dist >= allowed_dist,
+                    "Poisson-disk distribution requirement not met: There exists 2 vectors with \
+                     distance to each other of {} which is smaller than smallest allowed one {}. \
+                     The samples: [{:?}, {:?}]",
+                    dist,
+                    allowed_dist,
+                    v1,
+                    v2);
         }
     }
 }

@@ -23,25 +23,27 @@ impl<T: Debug + VecLike> Debug for Node<T> {
 
 impl<T: VecLike> Node<T> {
     pub fn new(cube: Hypercube<T>) -> Node<T> {
-        Node(Rc::new(RefCell::new(InnerNode{
-                childs: Vec::with_capacity(0),
-                samples: Vec::with_capacity(0),
-                volume: cube.volume(),
-                cube: cube,
-            })))
+        Node(Rc::new(RefCell::new(InnerNode {
+            childs: Vec::with_capacity(0),
+            samples: Vec::with_capacity(0),
+            volume: cube.volume(),
+            cube: cube,
+        })))
     }
 
     #[allow(unused_variables)]
     pub fn with_samples(cube: Hypercube<T>, samples: usize) -> Node<T> {
-        Node(Rc::new(RefCell::new(InnerNode{
-                childs: Vec::with_capacity(0),
-                samples: Vec::with_capacity(samples),
-                volume: cube.volume(),
-                cube: cube,
-            })))
+        Node(Rc::new(RefCell::new(InnerNode {
+            childs: Vec::with_capacity(0),
+            samples: Vec::with_capacity(samples),
+            volume: cube.volume(),
+            cube: cube,
+        })))
     }
 
-    //TODO: If there is only one child left for us we could compress by removing child and taking it's children? Max depth should then be checked via side and not by depth.
+    // TODO: If there is only one child left for us we could compress by removing
+    // child and taking it's children? Max depth should then be checked via side
+    // and not by depth.
     pub fn reduce(&self, parent: Option<&Node<T>>, amount: f64) {
         let mut borrow = self.0.borrow_mut();
         if amount < borrow.volume {
@@ -103,7 +105,9 @@ impl<T: VecLike> InnerNode<T> {
     }
 
     pub fn is_sample_valid(&self, sample: Sample<T>) -> bool {
-        self.samples.iter().all(|s| (s.pos - sample.pos).sqnorm() >= (s.radius + sample.radius).powi(2))
+        self.samples
+            .iter()
+            .all(|s| (s.pos - sample.pos).sqnorm() >= (s.radius + sample.radius).powi(2))
     }
 
     pub fn child_cube(&self, n: usize) -> Hypercube<T> {
@@ -118,7 +122,11 @@ impl<T: VecLike> InnerNode<T> {
         let dim = T::dim(None);
         for n in 0..dim {
             let bit = (bits >> n) & 1;
-            t[n] = if bit == 0 { a } else { b }[n];
+            t[n] = if bit == 0 {
+                a
+            } else {
+                b
+            }[n];
         }
         t
     }

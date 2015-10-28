@@ -19,7 +19,13 @@ pub fn print_v<V: VecLike>(v: V) -> String {
     result
 }
 
-pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, indices: &Vec<usize>, top_lvl_cell: f64, r: f64, periodicity: bool) {
+pub fn visualise<V: VecLike>(level: usize,
+                             grid: &Vec<Option<V>>,
+                             side: usize,
+                             indices: &Vec<usize>,
+                             top_lvl_cell: f64,
+                             r: f64,
+                             periodicity: bool) {
     let size = 2u32.pow(9);//512;
     let samples: Vec<V> = grid.iter().filter_map(|v| *v).collect();
     let mut imgbuf = image::ImageBuffer::new(size, size);
@@ -38,7 +44,7 @@ pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, i
         let sample = decode::<V>(*i, full_side as usize).unwrap();
         let x_start = (sample[0] * grid) as i32;
         let y_start = (sample[1] * grid) as i32;
-        let x_end = ((sample[0] + 1.) * grid ) as i32;
+        let x_end = ((sample[0] + 1.) * grid) as i32;
         let y_end = ((sample[1] + 1.) * grid) as i32;
         for x in x_start..x_end {
             for y in y_start..y_end {
@@ -70,18 +76,18 @@ pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, i
         let radius = (r * size as f64) as i32;
         draw_pixel(&mut imgbuf, size, xx, yy, middle, periodicity);
         draw_circle(&mut imgbuf, size, xx, yy, radius, color, periodicity);
-        /*for x in -radius..(radius + 1) {
-            for y in -radius..(radius + 1) {
-                if x * x + y * y < radius * radius {
-                    let color = if x == 0 || y == 0 {
-                        middle
-                    } else {
-                        color
-                    };
-                    draw_pixel(&mut imgbuf, size, xx + x, yy + y, color);
-                }
-            }
-        }*/
+        // for x in -radius..(radius + 1) {
+        // for y in -radius..(radius + 1) {
+        // if x * x + y * y < radius * radius {
+        // let color = if x == 0 || y == 0 {
+        // middle
+        // } else {
+        // color
+        // };
+        // draw_pixel(&mut imgbuf, size, xx + x, yy + y, color);
+        // }
+        // }
+        // }
     }
     let mut p = PathBuf::new();
     p.push("visualise");
@@ -91,18 +97,26 @@ pub fn visualise<V: VecLike>(level: usize, grid: &Vec<Option<V>>, side: usize, i
     let _ = image::ImageRgb8(imgbuf).save(fout, image::PNG);
 }
 
-fn draw_circle<C>(imgbuf: &mut image::ImageBuffer<image::Rgb<u8>, C>, size: u32, x0: i32, y0: i32, radius: i32, color: image::Rgb<u8>, periodicity: bool) where C: Deref<Target=[u8]> + DerefMut {
+fn draw_circle<C>(imgbuf: &mut image::ImageBuffer<image::Rgb<u8>, C>,
+                  size: u32,
+                  x0: i32,
+                  y0: i32,
+                  radius: i32,
+                  color: image::Rgb<u8>,
+                  periodicity: bool)
+    where C: Deref<Target = [u8]> + DerefMut
+{
     let mut x = radius;
     let mut y = 0;
     let mut decision_over_2 = 1 - x;
 
     while y <= x {
-        draw_pixel(imgbuf, size, x + x0,  y + y0, color, periodicity);
-        draw_pixel(imgbuf, size, y + x0,  x + y0, color, periodicity);
-        draw_pixel(imgbuf, size,-x + x0,  y + y0, color, periodicity);
-        draw_pixel(imgbuf, size,-y + x0,  x + y0, color, periodicity);
-        draw_pixel(imgbuf, size,-x + x0, -y + y0, color, periodicity);
-        draw_pixel(imgbuf, size,-y + x0, -x + y0, color, periodicity);
+        draw_pixel(imgbuf, size, x + x0, y + y0, color, periodicity);
+        draw_pixel(imgbuf, size, y + x0, x + y0, color, periodicity);
+        draw_pixel(imgbuf, size, -x + x0, y + y0, color, periodicity);
+        draw_pixel(imgbuf, size, -y + x0, x + y0, color, periodicity);
+        draw_pixel(imgbuf, size, -x + x0, -y + y0, color, periodicity);
+        draw_pixel(imgbuf, size, -y + x0, -x + y0, color, periodicity);
         draw_pixel(imgbuf, size, x + x0, -y + y0, color, periodicity);
         draw_pixel(imgbuf, size, y + x0, -x + y0, color, periodicity);
         y += 1;
@@ -115,7 +129,14 @@ fn draw_circle<C>(imgbuf: &mut image::ImageBuffer<image::Rgb<u8>, C>, size: u32,
     }
 }
 
-fn draw_pixel<C>(imgbuf: &mut image::ImageBuffer<image::Rgb<u8>, C>, size: u32, mut x: i32, mut y: i32, color: image::Rgb<u8>, periodicity: bool) where C: Deref<Target=[u8]> + DerefMut {
+fn draw_pixel<C>(imgbuf: &mut image::ImageBuffer<image::Rgb<u8>, C>,
+                 size: u32,
+                 mut x: i32,
+                 mut y: i32,
+                 color: image::Rgb<u8>,
+                 periodicity: bool)
+    where C: Deref<Target = [u8]> + DerefMut
+{
     if periodicity {
         x = x.modulo(size as i32);
         y = y.modulo(size as i32);

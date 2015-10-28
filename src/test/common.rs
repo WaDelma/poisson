@@ -1,4 +1,4 @@
-use ::PoissonDisk;
+use PoissonDisk;
 
 use rand;
 
