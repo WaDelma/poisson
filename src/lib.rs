@@ -183,9 +183,9 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
     /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
     pub fn generate(&mut self, points: &mut Vec<Sample<V>>) {
-        for e in std::fs::read_dir("visualise").unwrap() {
-            std::fs::remove_file(e.unwrap().path()).unwrap();
-        }
+        // for e in std::fs::read_dir("visualise").unwrap() {
+        //     std::fs::remove_file(e.unwrap().path()).unwrap();
+        // }
         let dim = V::dim(None);
         let top_lvl_cell = (2. * self.radius) / (dim as f64).sqrt();
         let top_lvl_side = (1. / top_lvl_cell) as usize;
