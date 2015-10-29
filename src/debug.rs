@@ -1,5 +1,5 @@
 use image;
-use {VecLike, encode, decode};
+use {Grid, VecLike, encode, decode};
 
 use modulo::Mod;
 
@@ -20,14 +20,12 @@ pub fn print_v<V: VecLike>(v: V) -> String {
 }
 
 pub fn visualise<V: VecLike>(level: usize,
-                             grid: &Vec<Option<V>>,
-                             side: usize,
+                             grid: &Grid<V>,
                              indices: &Vec<usize>,
-                             top_lvl_cell: f64,
                              r: f64,
                              periodicity: bool) {
     let size = 2u32.pow(9);//512;
-    let samples: Vec<V> = grid.iter().filter_map(|v| *v).collect();
+    let samples: Vec<V> = grid.data.iter().filter_map(|v| *v).collect();
     let mut imgbuf = image::ImageBuffer::new(size, size);
 
     let color = image::Rgb([255 as u8, 255 as u8, 255 as u8]);
@@ -37,15 +35,15 @@ pub fn visualise<V: VecLike>(level: usize,
     let green = image::Rgb([0 as u8, 255 as u8, 0 as u8]);
     let middle = image::Rgb([255 as u8, 0 as u8, 0 as u8]);
     let cells_per_cell = 2usize.pow(level as u32);
-    let full_side = cells_per_cell * side;
+    let full_side = cells_per_cell * grid.side;
 
-    let grid = (top_lvl_cell / cells_per_cell as f64) * size as f64;
+    let grid_w = (grid.cell / cells_per_cell as f64) * size as f64;
     for i in indices {
         let sample = decode::<V>(*i, full_side as usize).unwrap();
-        let x_start = (sample[0] * grid) as i32;
-        let y_start = (sample[1] * grid) as i32;
-        let x_end = ((sample[0] + 1.) * grid) as i32;
-        let y_end = ((sample[1] + 1.) * grid) as i32;
+        let x_start = (sample[0] * grid_w) as i32;
+        let y_start = (sample[1] * grid_w) as i32;
+        let x_end = ((sample[0] + 1.) * grid_w) as i32;
+        let y_end = ((sample[1] + 1.) * grid_w) as i32;
         for x in x_start..x_end {
             for y in y_start..y_end {
                 draw_pixel(&mut imgbuf, size, x, y, half, periodicity);
@@ -61,10 +59,10 @@ pub fn visualise<V: VecLike>(level: usize,
     //         }
     //     }
     // }
-    let grid = (top_lvl_cell * size as f64) as u32;
+    let grid_w = (grid.cell * size as f64) as u32;
     for x in 0..size {
         for y in 0..size {
-            if x % grid == 0 || y % grid == 0 {
+            if x % grid_w == 0 || y % grid_w == 0 {
                 imgbuf.put_pixel(x as u32, y as u32, green);
             }
         }

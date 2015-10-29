@@ -28,6 +28,7 @@ extern crate lazy_static;
 use std::cmp::PartialEq;
 use std::ops::{Sub, Mul, Add, Div, IndexMut};
 use std::marker::PhantomData;
+use std::mem::swap;
 
 use utils::{each_combination, Inplace};
 
@@ -173,7 +174,7 @@ pub struct PoissonGen<R: Rng, V: VecLike> {
     periodicity: bool,
 }
 
-struct Grid<V: VecLike> {
+pub struct Grid<V: VecLike> {
     data: Vec<Option<V>>,
     side: usize,
     cell: f64,
@@ -193,9 +194,28 @@ impl<V: VecLike> Grid<V> {
         }
     }
 
-    fn get_parent(&self, index: usize, level: usize) -> usize {
-        let parent_v = get_parent::<V>(index, level, self.side).unwrap();
-        encode(&parent_v, self.side, self.periodicity).unwrap()
+    fn get_parent(&self, index: usize, level: usize) -> V {
+        get_parent::<V>(index, level, self.side).unwrap()
+    }
+
+    fn get(&self, index: V) -> Option<&Option<V>> {
+        encode(&index, self.side, self.periodicity)
+            .map(|t| &self.data[t])
+    }
+
+    fn get_mut(&mut self, index: V) -> Option<&mut Option<V>> {
+        encode(&index, self.side, self.periodicity)
+            .map(move |t| &mut self.data[t])
+    }
+
+    fn cells(&self) -> usize {
+        self.data.len()
+    }
+
+    fn into_extended_samples(self, samples: &mut Vec<Sample<V>>, radius: f64) {
+        samples.extend(self.data.into_iter()
+            .filter_map(|v| v)
+            .map(|v| Sample::new(v, radius)));
     }
 }
 
@@ -221,30 +241,25 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         // }
         let dim = V::dim(None);
         let mut grid = Grid::new(self.radius, self.periodicity);
-        let capacity = grid.data.len() * dim;
+        let capacity = grid.cells() * dim;
         let mut indices = Vec::with_capacity(capacity);
-        indices.extend((0..grid.data.len()));
+        indices.extend((0..grid.cells()));
         let mut level = 0;
         while !indices.is_empty() && level < 63 {
             // if level > 15 {
             //     panic!();
             // }
-            // println!("{}/63, {}/{}, {}/{}", level, indices.len(), (top_lvl_side *
-            // 2usize.pow(level as u32)).pow(dim as u32), grid.iter().filter(|n|
-            // n.is_some()).count(), grid.len());
+            // println!("{}/63, {}/{}, {}/{}", level, indices.len(), (grid.side *
+            // 2usize.pow(level as u32)).pow(dim as u32), grid.data.iter().filter(|n| n.is_some()).count(), grid.cells());
             if self.throw_samples(&mut grid, &mut indices, level, 0.3) {
-                // debug::visualise(level, &grid, top_lvl_side, &indices, top_lvl_cell, (2. *
-                // self.radius), self.periodicity);
+                // debug::visualise(level, &grid, &indices, (2. * self.radius), self.periodicity);
                 self.subdivide(&mut grid, &mut indices, level);
                 level += 1;
             }
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
         }
-        points.extend(grid.data
-                          .into_iter()
-                          .filter_map(|v| v)
-                          .map(|v| Sample::new(v, self.radius)));
+        grid.into_extended_samples(points, self.radius);
     }
 }
 
@@ -262,7 +277,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
             let index = range.ind_sample(&mut self.rand);
             let cur = indices[index];
             let parent = grid.get_parent(cur, level);
-            if grid.data[parent].is_some() {
+            if grid.get(parent).unwrap().is_some() {
                 indices.swap_remove(index);
                 if indices.is_empty() {
                     return false;
@@ -271,7 +286,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
             } else {
                 let sample = choose_random_sample(&mut self.rand, &grid, cur, level);
                 if self.is_disk_free(&grid, cur, level, sample) {
-                    grid.data[parent] = Some(sample);
+                    swap(grid.get_mut(parent).unwrap(), &mut Some(sample));
                     indices.swap_remove(index);
                     if indices.is_empty() {
                         return false;
@@ -303,16 +318,16 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         let sqradius = (2. * self.radius).powi(2);
         // TODO: Does unnessary checking...
         each_combination(&[-2., -1., 0., 1., 2.])
-            .filter_map(|t| encode(&(parent + t), grid.side, self.periodicity))
-            .filter_map(|i| grid.data[i])
+            .filter_map(|t| grid.get(parent + t))
+            .filter_map(|t| *t)
             .all(|v| sqdist(v, c, self.periodicity) >= sqradius)
     }
 
     fn covered(&self, grid: &Grid<V>, index: usize, level: usize) -> bool {
         let parent = get_parent::<V>(index, level, grid.side).unwrap();
         each_combination(&[-2., -1., 0., 1., 2.])
-            .filter_map(|t| encode(&(parent + t), grid.side, self.periodicity))
-            .filter_map(|i| grid.data[i])
+            .filter_map(|t| grid.get(parent + t))
+            .filter_map(|t| *t)
             .any(|v| self.is_cell_covered(&v, index, grid.cell, grid.side, level))
     }
 
