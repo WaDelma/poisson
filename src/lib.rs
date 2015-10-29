@@ -173,6 +173,32 @@ pub struct PoissonGen<R: Rng, V: VecLike> {
     periodicity: bool,
 }
 
+struct Grid<V: VecLike> {
+    data: Vec<Option<V>>,
+    side: usize,
+    cell: f64,
+    periodicity: bool,
+}
+
+impl<V: VecLike> Grid<V> {
+    fn new(radius: f64, periodicity: bool) -> Grid<V> {
+        let dim = V::dim(None);
+        let cell = (2. * radius) / (dim as f64).sqrt();
+        let side = (1. / cell) as usize;
+        Grid {
+            cell: cell,
+            side: side,
+            data: vec![None; side.pow(dim as u32)],
+            periodicity: periodicity,
+        }
+    }
+
+    fn get_parent(&self, index: usize, level: usize) -> usize {
+        let parent_v = get_parent::<V>(index, level, self.side).unwrap();
+        encode(&parent_v, self.side, self.periodicity).unwrap()
+    }
+}
+
 impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: f64) {
@@ -194,12 +220,10 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         //     std::fs::remove_file(e.unwrap().path()).unwrap();
         // }
         let dim = V::dim(None);
-        let top_lvl_cell = (2. * self.radius) / (dim as f64).sqrt();
-        let top_lvl_side = (1. / top_lvl_cell) as usize;
-        let mut grid = vec![None; top_lvl_side.pow(dim as u32)];
-        let capacity = grid.len() * dim;
+        let mut grid = Grid::new(self.radius, self.periodicity);
+        let capacity = grid.data.len() * dim;
         let mut indices = Vec::with_capacity(capacity);
-        indices.extend((0..grid.len()));
+        indices.extend((0..grid.data.len()));
         let mut level = 0;
         while !indices.is_empty() && level < 63 {
             // if level > 15 {
@@ -208,21 +232,17 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
             // println!("{}/63, {}/{}, {}/{}", level, indices.len(), (top_lvl_side *
             // 2usize.pow(level as u32)).pow(dim as u32), grid.iter().filter(|n|
             // n.is_some()).count(), grid.len());
-            if self.throw_samples(&mut grid,
-                                  &mut indices,
-                                  level,
-                                  top_lvl_side,
-                                  top_lvl_cell,
-                                  0.3) {
+            if self.throw_samples(&mut grid, &mut indices, level, 0.3) {
                 // debug::visualise(level, &grid, top_lvl_side, &indices, top_lvl_cell, (2. *
                 // self.radius), self.periodicity);
-                self.subdivide(&mut grid, &mut indices, level, top_lvl_side, top_lvl_cell);
+                self.subdivide(&mut grid, &mut indices, level);
                 level += 1;
             }
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
         }
-        points.extend(grid.into_iter()
+        points.extend(grid.data
+                          .into_iter()
                           .filter_map(|v| v)
                           .map(|v| Sample::new(v, self.radius)));
     }
@@ -231,11 +251,9 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
 impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
     fn throw_samples(&mut self,
-                     grid: &mut Vec<Option<V>>,
+                     grid: &mut Grid<V>,
                      indices: &mut Vec<usize>,
                      level: usize,
-                     top_lvl_side: usize,
-                     top_lvl_cell: f64,
                      a: f64)
                      -> bool {
         let mut range = Range::new(0, indices.len());
@@ -243,22 +261,17 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         for _ in 0..throws {
             let index = range.ind_sample(&mut self.rand);
             let cur = indices[index];
-            let parent_v = get_parent::<V>(cur, level, top_lvl_side).unwrap();
-            let parent = encode(&parent_v, top_lvl_side, self.periodicity).unwrap();
-            if grid[parent].is_some() {
+            let parent = grid.get_parent(cur, level);
+            if grid.data[parent].is_some() {
                 indices.swap_remove(index);
                 if indices.is_empty() {
                     return false;
                 }
                 range = Range::new(0, indices.len());
             } else {
-                let sample = choose_random_sample(&mut self.rand,
-                                                  cur,
-                                                  level,
-                                                  top_lvl_side,
-                                                  top_lvl_cell);
-                if self.is_disk_free(&grid, cur, level, sample, top_lvl_side) {
-                    grid[parent] = Some(sample);
+                let sample = choose_random_sample(&mut self.rand, &grid, cur, level);
+                if self.is_disk_free(&grid, cur, level, sample) {
+                    grid.data[parent] = Some(sample);
                     indices.swap_remove(index);
                     if indices.is_empty() {
                         return false;
@@ -270,54 +283,37 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         true
     }
 
-    fn subdivide(&self,
-                 grid: &mut Vec<Option<V>>,
-                 indices: &mut Vec<usize>,
-                 level: usize,
-                 top_lvl_side: usize,
-                 top_lvl_cell: f64) {
+    fn subdivide(&self, grid: &mut Grid<V>, indices: &mut Vec<usize>, level: usize) {
         let cells_per_cell = 2usize.pow(level as u32);
-        let side = cells_per_cell * top_lvl_side;
+        let side = cells_per_cell * grid.side;
         let next_cells_per_cell = 2usize.pow(level as u32 + 1);
-        let next_side = next_cells_per_cell * top_lvl_side;
+        let next_side = next_cells_per_cell * grid.side;
         let choices = &[0., 1.];
         indices.flat_map_inplace(|i| {
             let ind = decode::<V>(i, side).unwrap();
             let periodicity = self.periodicity;
             each_combination::<V>(choices)
                 .map(move |n| encode(&(n + ind * 2.), next_side, periodicity).unwrap())
-                .filter(|c| !self.covered(&grid, *c, level + 1, top_lvl_side, top_lvl_cell))
+                .filter(|c| !self.covered(&grid, *c, level + 1))
         });
     }
 
-    fn is_disk_free(&self,
-                    grid: &Vec<Option<V>>,
-                    index: usize,
-                    level: usize,
-                    c: V,
-                    top_lvl_side: usize)
-                    -> bool {
-        let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
+    fn is_disk_free(&self, grid: &Grid<V>, index: usize, level: usize, c: V) -> bool {
+        let parent = get_parent::<V>(index, level, grid.side).unwrap();
         let sqradius = (2. * self.radius).powi(2);
         // TODO: Does unnessary checking...
         each_combination(&[-2., -1., 0., 1., 2.])
-            .filter_map(|t| encode(&(parent + t), top_lvl_side, self.periodicity))
-            .filter_map(|i| grid[i])
+            .filter_map(|t| encode(&(parent + t), grid.side, self.periodicity))
+            .filter_map(|i| grid.data[i])
             .all(|v| sqdist(v, c, self.periodicity) >= sqradius)
     }
 
-    fn covered(&self,
-               grid: &Vec<Option<V>>,
-               index: usize,
-               level: usize,
-               top_lvl_side: usize,
-               top_lvl_cell: f64)
-               -> bool {
-        let parent = get_parent::<V>(index, level, top_lvl_side).unwrap();
+    fn covered(&self, grid: &Grid<V>, index: usize, level: usize) -> bool {
+        let parent = get_parent::<V>(index, level, grid.side).unwrap();
         each_combination(&[-2., -1., 0., 1., 2.])
-            .filter_map(|t| encode(&(parent + t), top_lvl_side, self.periodicity))
-            .filter_map(|i| grid[i])
-            .any(|v| self.is_cell_covered(&v, index, top_lvl_cell, top_lvl_side, level))
+            .filter_map(|t| encode(&(parent + t), grid.side, self.periodicity))
+            .filter_map(|i| grid.data[i])
+            .any(|v| self.is_cell_covered(&v, index, grid.cell, grid.side, level))
     }
 
     fn is_cell_covered(&self,
@@ -349,15 +345,14 @@ fn sqdist<V: VecLike>(v1: V, v2: V, periodicity: bool) -> f64 {
 }
 
 fn choose_random_sample<V: VecLike, R: Rng>(rand: &mut R,
+                                            grid: &Grid<V>,
                                             index: usize,
-                                            level: usize,
-                                            top_lvl_side: usize,
-                                            top_lvl_cell: f64)
+                                            level: usize)
                                             -> V {
     let dim = V::dim(None);
     let side = 2usize.pow(level as u32);
-    let spacing = top_lvl_cell / side as f64;
-    let mut result = decode::<V>(index, side * top_lvl_side).unwrap() * spacing;
+    let spacing = grid.cell / side as f64;
+    let mut result = decode::<V>(index, side * grid.side).unwrap() * spacing;
     for n in 0..dim {
         let place = f64::rand(rand);
         result[n] += place * spacing;//mul_add
@@ -369,20 +364,14 @@ fn choose_random_sample<V: VecLike, R: Rng>(rand: &mut R,
 fn random_point_is_between_right_values_top_lvl() {
     use rand::{SeedableRng, XorShiftRng};
     let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
-    let dim = 2;
     let radius = 0.2;
-    let top_lvl_cell = radius / (dim as f64).sqrt();
-    let top_lvl_side = (1. / top_lvl_cell) as usize;
+    let grid = Grid::<na::Vec2<f64>>::new(radius, false);
     for _ in 0..1000 {
-        let result = choose_random_sample::<na::Vec2<f64>, _>(&mut rand,
-                                                              0,
-                                                              0,
-                                                              top_lvl_side,
-                                                              top_lvl_cell);
+        let result = choose_random_sample(&mut rand, &grid, 0, 0);
         assert!(result.x >= 0.);
-        assert!(result.x < top_lvl_cell);
+        assert!(result.x < grid.cell);
         assert!(result.y >= 0.);
-        assert!(result.y < top_lvl_cell);
+        assert!(result.y < grid.cell);
     }
 }
 
