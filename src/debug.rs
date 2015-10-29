@@ -1,5 +1,5 @@
 use image;
-use {Grid, VecLike, encode, decode};
+use {Grid, VecLike, encode};
 
 use modulo::Mod;
 
@@ -21,7 +21,7 @@ pub fn print_v<V: VecLike>(v: V) -> String {
 
 pub fn visualise<V: VecLike>(level: usize,
                              grid: &Grid<V>,
-                             indices: &Vec<usize>,
+                             indices: &Vec<V>,
                              r: f64,
                              periodicity: bool) {
     let size = 2u32.pow(9);//512;
@@ -38,8 +38,7 @@ pub fn visualise<V: VecLike>(level: usize,
     let full_side = cells_per_cell * grid.side;
 
     let grid_w = (grid.cell / cells_per_cell as f64) * size as f64;
-    for i in indices {
-        let sample = decode::<V>(*i, full_side as usize).unwrap();
+    for sample in indices {
         let x_start = (sample[0] * grid_w) as i32;
         let y_start = (sample[1] * grid_w) as i32;
         let x_end = ((sample[0] + 1.) * grid_w) as i32;

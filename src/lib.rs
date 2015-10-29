@@ -29,6 +29,7 @@ use std::cmp::PartialEq;
 use std::ops::{Sub, Mul, Add, Div, IndexMut};
 use std::marker::PhantomData;
 use std::mem::swap;
+use std::f64;
 
 use utils::{each_combination, Inplace};
 
@@ -194,18 +195,16 @@ impl<V: VecLike> Grid<V> {
         }
     }
 
-    fn get_parent(&self, index: usize, level: usize) -> V {
+    fn get_parent(&self, index: V, level: usize) -> V {
         get_parent::<V>(index, level, self.side).unwrap()
     }
 
     fn get(&self, index: V) -> Option<&Option<V>> {
-        encode(&index, self.side, self.periodicity)
-            .map(|t| &self.data[t])
+        encode(&index, self.side, self.periodicity).map(|t| &self.data[t])
     }
 
     fn get_mut(&mut self, index: V) -> Option<&mut Option<V>> {
-        encode(&index, self.side, self.periodicity)
-            .map(move |t| &mut self.data[t])
+        encode(&index, self.side, self.periodicity).map(move |t| &mut self.data[t])
     }
 
     fn cells(&self) -> usize {
@@ -213,9 +212,10 @@ impl<V: VecLike> Grid<V> {
     }
 
     fn into_extended_samples(self, samples: &mut Vec<Sample<V>>, radius: f64) {
-        samples.extend(self.data.into_iter()
-            .filter_map(|v| v)
-            .map(|v| Sample::new(v, radius)));
+        samples.extend(self.data
+                           .into_iter()
+                           .filter_map(|v| v)
+                           .map(|v| Sample::new(v, radius)));
     }
 }
 
@@ -243,16 +243,19 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         let mut grid = Grid::new(self.radius, self.periodicity);
         let capacity = grid.cells() * dim;
         let mut indices = Vec::with_capacity(capacity);
-        indices.extend((0..grid.cells()));
+        let choices = (0..grid.side).map(|i| i as f64).collect::<Vec<_>>();
+        indices.extend(each_combination::<V>(&choices));
         let mut level = 0;
-        while !indices.is_empty() && level < 63 {
+        while !indices.is_empty() && level < f64::MANTISSA_DIGITS as usize {
             // if level > 15 {
             //     panic!();
             // }
             // println!("{}/63, {}/{}, {}/{}", level, indices.len(), (grid.side *
-            // 2usize.pow(level as u32)).pow(dim as u32), grid.data.iter().filter(|n| n.is_some()).count(), grid.cells());
+            // 2usize.pow(level as u32)).pow(dim as u32), grid.data.iter().filter(|n|
+            // n.is_some()).count(), grid.cells());
             if self.throw_samples(&mut grid, &mut indices, level, 0.3) {
-                // debug::visualise(level, &grid, &indices, (2. * self.radius), self.periodicity);
+                // debug::visualise(level, &grid, &indices, (2. * self.radius),
+                // self.periodicity);
                 self.subdivide(&mut grid, &mut indices, level);
                 level += 1;
             }
@@ -267,7 +270,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
 
     fn throw_samples(&mut self,
                      grid: &mut Grid<V>,
-                     indices: &mut Vec<usize>,
+                     indices: &mut Vec<V>,
                      level: usize,
                      a: f64)
                      -> bool {
@@ -298,22 +301,16 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         true
     }
 
-    fn subdivide(&self, grid: &mut Grid<V>, indices: &mut Vec<usize>, level: usize) {
-        let cells_per_cell = 2usize.pow(level as u32);
-        let side = cells_per_cell * grid.side;
-        let next_cells_per_cell = 2usize.pow(level as u32 + 1);
-        let next_side = next_cells_per_cell * grid.side;
+    fn subdivide(&self, grid: &mut Grid<V>, indices: &mut Vec<V>, level: usize) {
         let choices = &[0., 1.];
         indices.flat_map_inplace(|i| {
-            let ind = decode::<V>(i, side).unwrap();
-            let periodicity = self.periodicity;
             each_combination::<V>(choices)
-                .map(move |n| encode(&(n + ind * 2.), next_side, periodicity).unwrap())
+                .map(move |n| n + i * 2.)
                 .filter(|c| !self.covered(&grid, *c, level + 1))
         });
     }
 
-    fn is_disk_free(&self, grid: &Grid<V>, index: usize, level: usize, c: V) -> bool {
+    fn is_disk_free(&self, grid: &Grid<V>, index: V, level: usize, c: V) -> bool {
         let parent = get_parent::<V>(index, level, grid.side).unwrap();
         let sqradius = (2. * self.radius).powi(2);
         // TODO: Does unnessary checking...
@@ -323,27 +320,20 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
             .all(|v| sqdist(v, c, self.periodicity) >= sqradius)
     }
 
-    fn covered(&self, grid: &Grid<V>, index: usize, level: usize) -> bool {
+    fn covered(&self, grid: &Grid<V>, index: V, level: usize) -> bool {
         let parent = get_parent::<V>(index, level, grid.side).unwrap();
         each_combination(&[-2., -1., 0., 1., 2.])
             .filter_map(|t| grid.get(parent + t))
             .filter_map(|t| *t)
-            .any(|v| self.is_cell_covered(&v, index, grid.cell, grid.side, level))
+            .any(|v| self.is_cell_covered(&v, index, grid, level))
     }
 
-    fn is_cell_covered(&self,
-                       v: &V,
-                       index: usize,
-                       top_lvl_cell: f64,
-                       top_lvl_side: usize,
-                       level: usize)
-                       -> bool {
+    fn is_cell_covered(&self, v: &V, index: V, grid: &Grid<V>, level: usize) -> bool {
         let side = 2usize.pow(level as u32);
-        let spacing = top_lvl_cell / side as f64;
+        let spacing = grid.cell / side as f64;
         let sqradius = (2. * self.radius).powi(2);
-        let base = decode::<V>(index, side * top_lvl_side).unwrap();
         each_combination(&[0., 1.])
-            .map(|t| (base + t) * spacing)
+            .map(|t| (index + t) * spacing)
             .all(|t| sqdist(t, *v, self.periodicity) < sqradius)
     }
 }
@@ -353,7 +343,7 @@ fn sqdist<V: VecLike>(v1: V, v2: V, periodicity: bool) -> f64 {
     if periodicity {
         each_combination(&[-1., 0., 1.])
             .map(|v| (diff + v).sqnorm())
-            .fold(1., |a, b| a.min(b))
+            .fold(f64::MAX, |a, b| a.min(b))
     } else {
         diff.sqnorm()
     }
@@ -361,13 +351,13 @@ fn sqdist<V: VecLike>(v1: V, v2: V, periodicity: bool) -> f64 {
 
 fn choose_random_sample<V: VecLike, R: Rng>(rand: &mut R,
                                             grid: &Grid<V>,
-                                            index: usize,
+                                            index: V,
                                             level: usize)
                                             -> V {
     let dim = V::dim(None);
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / side as f64;
-    let mut result = decode::<V>(index, side * grid.side).unwrap() * spacing;
+    let mut result = index * spacing;
     for n in 0..dim {
         let place = f64::rand(rand);
         result[n] += place * spacing;//mul_add
@@ -382,7 +372,7 @@ fn random_point_is_between_right_values_top_lvl() {
     let radius = 0.2;
     let grid = Grid::<na::Vec2<f64>>::new(radius, false);
     for _ in 0..1000 {
-        let result = choose_random_sample(&mut rand, &grid, 0, 0);
+        let result = choose_random_sample(&mut rand, &grid, na::Vec2::<f64>::zero(), 0);
         assert!(result.x >= 0.);
         assert!(result.x < grid.cell);
         assert!(result.y >= 0.);
@@ -395,7 +385,7 @@ fn encode<V: VecLike>(v: &V, side: usize, periodicity: bool) -> Option<usize> {
     for n in 0..V::dim(None) {
         let mut cur = v[n] as usize;
         if periodicity {
-            cur = cur.modulo(side);
+            cur = (v[n] as isize).modulo(side as isize) as usize;
         } else if v[n] < 0. || v[n] >= side as f64 {
             return None;
         }
@@ -404,6 +394,7 @@ fn encode<V: VecLike>(v: &V, side: usize, periodicity: bool) -> Option<usize> {
     Some(index / side)
 }
 
+#[cfg(test)]
 fn decode<V: VecLike>(index: usize, side: usize) -> Option<V> {
     let dim = V::dim(None);
     if index >= side.pow(dim as u32) {
@@ -445,19 +436,17 @@ fn decoding_outside_of_area_fails() {
     assert_eq!(None, decode::<na::Vec2<f64>>(100, 10));
 }
 
-fn get_parent<V: VecLike>(index: usize, level: usize, top_lvl_side: usize) -> Option<V> {
+fn get_parent<V: VecLike>(mut index: V, level: usize, top_lvl_side: usize) -> Option<V> {
     let dim = V::dim(None);
     let split = 2usize.pow(level as u32);
-    decode::<V>(index, split * top_lvl_side).and_then(|mut r| {
-        for n in 0..dim {
-            if r[n] >= top_lvl_side as f64 {
-                // TODO: Fix getting parent outside of area.
-                // return None;
-            }
-            r[n] = (r[n] / split as f64).floor();
+    for n in 0..dim {
+        if index[n] >= top_lvl_side as f64 {
+            // TODO: Fix getting parent outside of area.
+            // return None;
         }
-        Some(r)
-    })
+        index[n] = (index[n] / split as f64).floor();
+    }
+    Some(index)
 }
 
 #[test]
@@ -467,11 +456,10 @@ fn getting_parent_works() {
     let cells_per_cell = 2usize.pow(divides as u32);
     let cells_per_side_divided = cells_per_side * cells_per_cell;
     let testee = na::Vec2::new(1., 2.);
-    let index = encode(&((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.)),
-                       cells_per_side_divided,
-                       false)
-                    .unwrap();
-    assert_eq!(Some(testee), get_parent(index, divides, cells_per_side));
+    assert_eq!(Some(testee),
+               get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),
+                          divides,
+                          cells_per_side));
 }
 
 #[test]
@@ -481,11 +469,8 @@ fn getting_parent_outside_of_area_fails() {
     let cells_per_cell = 2usize.pow(divides as u32);
     let cells_per_side_divided = cells_per_side * cells_per_cell;
     let testee = na::Vec2::new(1., 3.);
-    let mut index = 0;
-    for n in 0..2 {
-        index = (index + testee[n] as usize) * cells_per_side_divided;
-    }
-    index = index / cells_per_side_divided as usize;
     assert_eq!(None::<na::Vec2<f64>>,
-               get_parent(index, divides, cells_per_side));
+               get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),
+                          divides,
+                          cells_per_side));
 }

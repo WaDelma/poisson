@@ -19,22 +19,22 @@ fn test_4d_1_80_perioditic() {
 
 #[test]
 fn test_4d_10_80_normal() {
-    test_with_samples::<Vec4>(10, 0.8, 800, false);
+    test_with_samples::<Vec4>(10, 0.8, 400, false);
 }
 
 #[test]
 fn test_4d_10_80_perioditic() {
-    test_with_samples::<Vec4>(10, 0.8, 400, true);
+    test_with_samples::<Vec4>(10, 0.8, 200, true);
 }
 
 #[test]
 fn test_4d_100_80_normal() {
-    test_with_samples::<Vec4>(100, 0.8, 40, false);
+    test_with_samples::<Vec4>(100, 0.8, 10, false);
 }
 
 #[test]
 fn test_4d_100_80_perioditic() {
-    test_with_samples::<Vec4>(100, 0.8, 20, true);
+    test_with_samples::<Vec4>(100, 0.8, 5, true);
 }
 
 #[test]
