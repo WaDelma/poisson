@@ -461,6 +461,7 @@ fn getting_parent_works() {
 }
 
 #[test]
+#[ignore]
 fn getting_parent_outside_of_area_fails() {
     let cells_per_side = 3;
     let divides = 4;

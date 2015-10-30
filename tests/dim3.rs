@@ -22,22 +22,22 @@ fn test_3d_1_80_perioditic() {
 
 #[test]
 fn test_3d_10_80_normal() {
-    test_with_samples::<Vect>(10, 0.8, 800, false);
+    test_with_samples::<Vect>(10, 0.8, 400, false);
 }
 
 #[test]
 fn test_3d_10_80_perioditic() {
-    test_with_samples::<Vect>(10, 0.8, 400, true);
+    test_with_samples::<Vect>(10, 0.8, 200, true);
 }
 
 #[test]
 fn test_3d_100_80_normal() {
-    test_with_samples::<Vect>(100, 0.8, 400, false);
+    test_with_samples::<Vect>(100, 0.8, 200, false);
 }
 
 #[test]
 fn test_3d_100_80_perioditic() {
-    test_with_samples::<Vect>(100, 0.8, 200, true);
+    test_with_samples::<Vect>(100, 0.8, 100, true);
 }
 
 #[test]
