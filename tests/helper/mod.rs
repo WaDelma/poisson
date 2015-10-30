@@ -1,4 +1,4 @@
-use {PoissonDisk, Sample, VecLike};
+use poisson::{PoissonDisk, Sample, VecLike};
 
 use rand::{SeedableRng, XorShiftRng};
 
@@ -6,12 +6,7 @@ use std::fmt::Debug;
 
 use na::Norm;
 
-mod common;
-mod dim2;
-mod dim3;
-mod dim4;
-
-fn test_with_samples<T: Debug + VecLike>(samples: u32,
+pub fn test_with_samples<T: Debug + VecLike>(samples: u32,
                                          relative_radius: f64,
                                          seeds: u32,
                                          periodicity: bool) {
@@ -47,7 +42,7 @@ fn test_with_samples<T: Debug + VecLike>(samples: u32,
     }
 }
 
-fn test_with_seeds_prefill<T: Debug + VecLike, F>(radius: f64,
+pub fn test_with_seeds_prefill<T: Debug + VecLike, F>(radius: f64,
                                                   seeds: u32,
                                                   periodicity: bool,
                                                   filler: &mut F)

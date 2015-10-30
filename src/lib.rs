@@ -34,8 +34,6 @@ use std::f64;
 use utils::{each_combination, Inplace};
 
 mod math;
-#[cfg(test)]
-mod test;
 mod debug;
 mod utils;
 

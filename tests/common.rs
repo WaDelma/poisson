@@ -1,7 +1,9 @@
-use PoissonDisk;
+extern crate poisson;
+use poisson::PoissonDisk;
 
-use rand;
+extern crate rand;
 
+extern crate nalgebra as na;
 use na::Vec2 as naVec2;
 pub type Vec2 = naVec2<f64>;
 
