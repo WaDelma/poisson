@@ -6,7 +6,7 @@ description = "Poisson-disk distribution generator."
 repository = "https://github.com/WaDelma/poisson"
 documentation = "https://WaDelma.github.io/poisson/"
 readme = "README.md"
-keywords = [ "distribution", "poisson-disk", "multidimensional", "object distribution", "sampling", "blue noise" ]
+keywords = [ "distribution", "poisson-disk", "multidimensional", "sampling" ]
 license = "MIT"
 
 [dependencies]
