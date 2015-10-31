@@ -3,13 +3,11 @@
 //! Generates distribution of points where:
 //!
 //! * For each point there is disk of certain radius which doesn't intersect
-//! with any disk of any other point
-//!    * Nodes fill the space uniformly
+//! with any other disk of other points
+//! * Samples fill the space uniformly
 //!
 extern crate modulo;
 use modulo::Mod;
-
-extern crate image;
 
 extern crate rand;
 use rand::{Rand, Rng};
@@ -34,6 +32,7 @@ use std::f64;
 use utils::{each_combination, Inplace};
 
 mod math;
+#[cfg(test)]
 mod debug;
 mod utils;
 
@@ -63,26 +62,6 @@ impl<T> VecLike for T where T:
     Dim +
     Copy {}
 
-/// Describes position of sample and radius of disk around it.
-#[derive(PartialEq, Clone, Copy, Debug)]
-pub struct Sample<T> {
-    pub pos: T,
-    radius: f64,
-}
-
-impl<T: VecLike> Sample<T> {
-    pub fn new(pos: T, radius: f64) -> Self {
-        Sample {
-            pos: pos,
-            radius: radius,
-        }
-    }
-
-    pub fn radius(&self) -> f64 {
-        self.radius
-    }
-}
-
 /// Generates poisson-disk distribution in [0, 1]² area with O(N log N) time and space complexity relative to the number of samples generated.
 /// Based on Gamito, Manuel N., and Steve C. Maddock. "Accurate multidimensional Poisson-disk sampling." ACM Transactions on Graphics (TOG) 29.1 (2009): 8.
 ///
@@ -97,8 +76,7 @@ impl<T: VecLike> Sample<T> {
 ///
 /// fn main() {
 ///     let mut poisson = PoissonDisk::new(rand::weak_rng()).build_radius::<Vec2>(0.1);
-///     let mut vecs = vec![];
-///     poisson.generate(&mut vecs);
+///     let vecs = poisson.generate();
 ///     println!("{:?}", vecs);
 /// }
 /// ```
@@ -209,11 +187,8 @@ impl<V: VecLike> Grid<V> {
         self.data.len()
     }
 
-    fn into_extended_samples(self, samples: &mut Vec<Sample<V>>, radius: f64) {
-        samples.extend(self.data
-                           .into_iter()
-                           .filter_map(|v| v)
-                           .map(|v| Sample::new(v, radius)));
+    fn into_samples(self) -> Vec<V>{
+        self.data.into_iter().filter_map(|v| v).collect()
     }
 }
 
@@ -233,7 +208,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     /// Populates given vector with poisson-disk distribution [0, 1]²
     /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
     /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
-    pub fn generate(&mut self, points: &mut Vec<Sample<V>>) {
+    pub fn generate(&mut self) -> Vec<V> {
         // for e in std::fs::read_dir("visualise").unwrap() {
         //     std::fs::remove_file(e.unwrap().path()).unwrap();
         // }
@@ -260,7 +235,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
             // If this assert fails then a is too small or subdivide code is broken
             // assert_eq!(capacity, indices.capacity());
         }
-        grid.into_extended_samples(points, self.radius);
+        grid.into_samples()
     }
 }
 
@@ -309,7 +284,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn is_disk_free(&self, grid: &Grid<V>, index: V, level: usize, c: V) -> bool {
-        let parent = get_parent::<V>(index, level, grid.side).unwrap();
+        let parent = grid.get_parent(index, level);
         let sqradius = (2. * self.radius).powi(2);
         // TODO: Does unnessary checking...
         each_combination(&[-2., -1., 0., 1., 2.])
@@ -319,7 +294,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn covered(&self, grid: &Grid<V>, index: V, level: usize) -> bool {
-        let parent = get_parent::<V>(index, level, grid.side).unwrap();
+        let parent = grid.get_parent(index, level);
         each_combination(&[-2., -1., 0., 1., 2.])
             .filter_map(|t| grid.get(parent + t))
             .filter_map(|t| *t)
@@ -452,7 +427,6 @@ fn getting_parent_works() {
     let cells_per_side = 3;
     let divides = 4;
     let cells_per_cell = 2usize.pow(divides as u32);
-    let cells_per_side_divided = cells_per_side * cells_per_cell;
     let testee = na::Vec2::new(1., 2.);
     assert_eq!(Some(testee),
                get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),
@@ -466,7 +440,6 @@ fn getting_parent_outside_of_area_fails() {
     let cells_per_side = 3;
     let divides = 4;
     let cells_per_cell = 2usize.pow(divides as u32);
-    let cells_per_side_divided = cells_per_side * cells_per_cell;
     let testee = na::Vec2::new(1., 3.);
     assert_eq!(None::<na::Vec2<f64>>,
                get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),

@@ -1,10 +1,10 @@
-use image;
-use {Grid, VecLike, encode};
+extern crate image;
+use {Grid, VecLike};
 
 use modulo::Mod;
 
 use std::fs::{self, File};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 use std::ops::{Deref, DerefMut};
 
 pub fn print_v<V: VecLike>(v: V) -> String {
@@ -30,12 +30,9 @@ pub fn visualise<V: VecLike>(level: usize,
 
     let color = image::Rgb([255 as u8, 255 as u8, 255 as u8]);
     let half = image::Rgb([127 as u8, 127 as u8, 127 as u8]);
-    let purple = image::Rgb([127 as u8, 0 as u8, 255 as u8]);
-    let yellow = image::Rgb([255 as u8, 255 as u8, 0 as u8]);
     let green = image::Rgb([0 as u8, 255 as u8, 0 as u8]);
     let middle = image::Rgb([255 as u8, 0 as u8, 0 as u8]);
     let cells_per_cell = 2usize.pow(level as u32);
-    let full_side = cells_per_cell * grid.side;
 
     let grid_w = (grid.cell / cells_per_cell as f64) * size as f64;
     for sample in indices {
@@ -50,14 +47,6 @@ pub fn visualise<V: VecLike>(level: usize,
         }
     }
 
-    // let grid = (top_lvl_cell / cells_per_cell as f64 * size as f64) as u32;
-    // for x in 0..size {
-    //     for y in 0..size {
-    //         if x % grid == 0 || y % grid == 0 {
-    //             imgbuf.put_pixel(x as u32, y as u32, purple);
-    //         }
-    //     }
-    // }
     let grid_w = (grid.cell * size as f64) as u32;
     for x in 0..size {
         for y in 0..size {
@@ -73,18 +62,6 @@ pub fn visualise<V: VecLike>(level: usize,
         let radius = (r * size as f64) as i32;
         draw_pixel(&mut imgbuf, size, xx, yy, middle, periodicity);
         draw_circle(&mut imgbuf, size, xx, yy, radius, color, periodicity);
-        // for x in -radius..(radius + 1) {
-        // for y in -radius..(radius + 1) {
-        // if x * x + y * y < radius * radius {
-        // let color = if x == 0 || y == 0 {
-        // middle
-        // } else {
-        // color
-        // };
-        // draw_pixel(&mut imgbuf, size, xx + x, yy + y, color);
-        // }
-        // }
-        // }
     }
     let mut p = PathBuf::new();
     p.push("visualise");
