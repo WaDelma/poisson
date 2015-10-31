@@ -419,12 +419,10 @@ fn get_parent<V>(mut index: V, level: usize) -> V
 
 #[test]
 fn getting_parent_works() {
-    let cells_per_side = 3;
     let divides = 4;
     let cells_per_cell = 2usize.pow(divides as u32);
     let testee = na::Vec2::new(1., 2.);
     assert_eq!(testee,
                get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),
-                          divides,
-                          cells_per_side));
+                          divides));
 }
