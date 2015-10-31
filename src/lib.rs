@@ -60,8 +60,7 @@ impl<T> VecLike for T where T:
     Dim +
     Copy {}
 
-/// Generates Poisson-disk distribution in [0, 1]² area with O(N) time and space complexity relative to the number of samples generated.
-/// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
+/// Builds PoissonGen with wanted properties.    
 ///
 /// # Examples
 ///
@@ -150,6 +149,8 @@ impl<R> PoissonDisk<R> where R: Rng {
     }
 }
 
+/// Generates Poisson-disk distribution in [0, 1]² area with O(N) time and space complexity relative to the number of samples generated.
+/// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
 pub struct PoissonGen<R, V>
     where R: Rng,
           V: VecLike
@@ -160,7 +161,7 @@ pub struct PoissonGen<R, V>
     periodicity: bool,
 }
 
-pub struct Grid<V>
+struct Grid<V>
     where V: VecLike
 {
     data: Vec<Option<V>>,
