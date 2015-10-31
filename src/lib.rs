@@ -32,8 +32,6 @@ use std::f64;
 use utils::{each_combination, Inplace};
 
 mod math;
-#[cfg(test)]
-mod debug;
 mod utils;
 
 /// Describes what traits the algorithm needs to be able to work.
@@ -62,8 +60,8 @@ impl<T> VecLike for T where T:
     Dim +
     Copy {}
 
-/// Generates poisson-disk distribution in [0, 1]² area with O(N log N) time and space complexity relative to the number of samples generated.
-/// Based on Gamito, Manuel N., and Steve C. Maddock. "Accurate multidimensional Poisson-disk sampling." ACM Transactions on Graphics (TOG) 29.1 (2009): 8.
+/// Generates Poisson-disk distribution in [0, 1]² area with O(N) time and space complexity relative to the number of samples generated.
+/// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
 ///
 /// # Examples
 ///
@@ -80,13 +78,15 @@ impl<T> VecLike for T where T:
 ///     println!("{:?}", vecs);
 /// }
 /// ```
-pub struct PoissonDisk<R: Rng> {
+pub struct PoissonDisk<R>
+    where R: Rng
+{
     rand: R,
     periodicity: bool,
 }
 
-impl<R: Rng> PoissonDisk<R> {
-    /// Creates new poisson-disk generator builder with random generator specified.
+impl<R> PoissonDisk<R> where R: Rng {
+    /// Creates new Poisson-disk generator builder with random generator specified.
     pub fn new(rand: R) -> Self {
         PoissonDisk {
             rand: rand,
@@ -94,7 +94,7 @@ impl<R: Rng> PoissonDisk<R> {
         }
     }
 
-    /// Sets the generator to generate perioditic poisson-disk distributions.
+    /// Sets the generator to generate perioditic Poisson-disk distributions.
     pub fn perioditic(mut self) -> Self {
         self.periodicity = true;
         self
@@ -102,7 +102,9 @@ impl<R: Rng> PoissonDisk<R> {
 
     /// Builds the generator with relative radius specified.
     /// Radius should be ]0, 1]
-    pub fn build_relative_radius<V: VecLike>(self, radius: f64) -> PoissonGen<R, V> {
+    pub fn build_relative_radius<V>(self, radius: f64) -> PoissonGen<R, V>
+        where V: VecLike
+    {
         assert!(0. < radius);
         assert!(radius <= 1.);
         PoissonGen {
@@ -115,7 +117,9 @@ impl<R: Rng> PoissonDisk<R> {
 
     /// Builds the generator with radius specified.
     /// Radius should be ]0, √2 / 2]
-    pub fn build_radius<V: VecLike>(self, radius: f64) -> PoissonGen<R, V> {
+    pub fn build_radius<V>(self, radius: f64) -> PoissonGen<R, V>
+        where V: VecLike
+    {
         assert!(0. < radius);
         assert!(radius <= (2f64.sqrt() / 2.));
         PoissonGen {
@@ -130,7 +134,9 @@ impl<R: Rng> PoissonDisk<R> {
     /// Amount of samples should be larger than 0.
     /// Relative radius should be [0, 1].
     /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
-    pub fn build_samples<V: VecLike>(self, samples: u32, relative_radius: f64) -> PoissonGen<R, V> {
+    pub fn build_samples<V>(self, samples: u32, relative_radius: f64) -> PoissonGen<R, V>
+        where V: VecLike
+    {
         assert!(self.periodicity || V::dim(None) < 5);
         assert!(samples > 0);
         assert!(relative_radius >= 0.);
@@ -144,21 +150,26 @@ impl<R: Rng> PoissonDisk<R> {
     }
 }
 
-pub struct PoissonGen<R: Rng, V: VecLike> {
+pub struct PoissonGen<R, V>
+    where R: Rng,
+          V: VecLike
+{
     dim: PhantomData<V>,
     rand: R,
     radius: f64,
     periodicity: bool,
 }
 
-pub struct Grid<V: VecLike> {
+pub struct Grid<V>
+    where V: VecLike
+{
     data: Vec<Option<V>>,
     side: usize,
     cell: f64,
     periodicity: bool,
 }
 
-impl<V: VecLike> Grid<V> {
+impl<V> Grid<V> where V: VecLike {
     fn new(radius: f64, periodicity: bool) -> Grid<V> {
         let dim = V::dim(None);
         let cell = (2. * radius) / (dim as f64).sqrt();
@@ -169,10 +180,6 @@ impl<V: VecLike> Grid<V> {
             data: vec![None; side.pow(dim as u32)],
             periodicity: periodicity,
         }
-    }
-
-    fn get_parent(&self, index: V, level: usize) -> V {
-        get_parent::<V>(index, level, self.side).unwrap()
     }
 
     fn get(&self, index: V) -> Option<&Option<V>> {
@@ -187,12 +194,12 @@ impl<V: VecLike> Grid<V> {
         self.data.len()
     }
 
-    fn into_samples(self) -> Vec<V>{
+    fn into_samples(self) -> Vec<V> {
         self.data.into_iter().filter_map(|v| v).collect()
     }
 }
 
-impl<R: Rng, V: VecLike> PoissonGen<R, V> {
+impl<R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: f64) {
         assert!(0. < radius);
@@ -205,13 +212,8 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         self.radius
     }
 
-    /// Populates given vector with poisson-disk distribution [0, 1]²
-    /// Resulting samples will be a poisson-disk distribution iff given samples were already valid poisson-disk distribution.
-    /// Resulting samples will be a maximal poisson-disk distribution [0, 1]² iff given samples have same radius and are already valid poisson-disk distribution.
+    /// Generatas a vector with Poisson-disk distribution in area [0, 1]²
     pub fn generate(&mut self) -> Vec<V> {
-        // for e in std::fs::read_dir("visualise").unwrap() {
-        //     std::fs::remove_file(e.unwrap().path()).unwrap();
-        // }
         let dim = V::dim(None);
         let mut grid = Grid::new(self.radius, self.periodicity);
         let capacity = grid.cells() * dim;
@@ -220,15 +222,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
         indices.extend(each_combination::<V>(&choices));
         let mut level = 0;
         while !indices.is_empty() && level < f64::MANTISSA_DIGITS as usize {
-            // if level > 15 {
-            //     panic!();
-            // }
-            // println!("{}/63, {}/{}, {}/{}", level, indices.len(), (grid.side *
-            // 2usize.pow(level as u32)).pow(dim as u32), grid.data.iter().filter(|n|
-            // n.is_some()).count(), grid.cells());
             if self.throw_samples(&mut grid, &mut indices, level, 0.3) {
-                // debug::visualise(level, &grid, &indices, (2. * self.radius),
-                // self.periodicity);
                 self.subdivide(&mut grid, &mut indices, level);
                 level += 1;
             }
@@ -239,7 +233,7 @@ impl<R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 }
 
-impl <R: Rng, V: VecLike> PoissonGen<R, V> {
+impl <R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
 
     fn throw_samples(&mut self,
                      grid: &mut Grid<V>,
@@ -252,8 +246,8 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
         for _ in 0..throws {
             let index = range.ind_sample(&mut self.rand);
             let cur = indices[index];
-            let parent = grid.get_parent(cur, level);
-            if grid.get(parent).unwrap().is_some() {
+            let parent = get_parent(cur, level);
+            if grid.get(parent).expect("Indexing base grid by valid parent failed.").is_some() {
                 indices.swap_remove(index);
                 if indices.is_empty() {
                     return false;
@@ -262,7 +256,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
             } else {
                 let sample = choose_random_sample(&mut self.rand, &grid, cur, level);
                 if self.is_disk_free(&grid, cur, level, sample) {
-                    swap(grid.get_mut(parent).unwrap(), &mut Some(sample));
+                    swap(grid.get_mut(parent).expect("Indexing base grid by already indexed valid parent failed."), &mut Some(sample));
                     indices.swap_remove(index);
                     if indices.is_empty() {
                         return false;
@@ -284,7 +278,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn is_disk_free(&self, grid: &Grid<V>, index: V, level: usize, c: V) -> bool {
-        let parent = grid.get_parent(index, level);
+        let parent = get_parent(index, level);
         let sqradius = (2. * self.radius).powi(2);
         // TODO: Does unnessary checking...
         each_combination(&[-2., -1., 0., 1., 2.])
@@ -294,7 +288,7 @@ impl <R: Rng, V: VecLike> PoissonGen<R, V> {
     }
 
     fn covered(&self, grid: &Grid<V>, index: V, level: usize) -> bool {
-        let parent = grid.get_parent(index, level);
+        let parent = get_parent(index, level);
         each_combination(&[-2., -1., 0., 1., 2.])
             .filter_map(|t| grid.get(parent + t))
             .filter_map(|t| *t)
@@ -322,18 +316,17 @@ fn sqdist<V: VecLike>(v1: V, v2: V, periodicity: bool) -> f64 {
     }
 }
 
-fn choose_random_sample<V: VecLike, R: Rng>(rand: &mut R,
-                                            grid: &Grid<V>,
-                                            index: V,
-                                            level: usize)
-                                            -> V {
+fn choose_random_sample<V, R>(rand: &mut R, grid: &Grid<V>, index: V, level: usize) -> V
+    where V: VecLike,
+          R: Rng
+{
     let dim = V::dim(None);
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / side as f64;
     let mut result = index * spacing;
     for n in 0..dim {
         let place = f64::rand(rand);
-        result[n] += place * spacing;//mul_add
+        result[n] += place * spacing;
     }
     result
 }
@@ -353,7 +346,9 @@ fn random_point_is_between_right_values_top_lvl() {
     }
 }
 
-fn encode<V: VecLike>(v: &V, side: usize, periodicity: bool) -> Option<usize> {
+fn encode<V>(v: &V, side: usize, periodicity: bool) -> Option<usize>
+    where V: VecLike
+{
     let mut index = 0;
     for n in 0..V::dim(None) {
         let mut cur = v[n] as usize;
@@ -368,7 +363,9 @@ fn encode<V: VecLike>(v: &V, side: usize, periodicity: bool) -> Option<usize> {
 }
 
 #[cfg(test)]
-fn decode<V: VecLike>(index: usize, side: usize) -> Option<V> {
+fn decode<V>(index: usize, side: usize) -> Option<V>
+    where V: VecLike
+{
     let dim = V::dim(None);
     if index >= side.pow(dim as u32) {
         return None;
@@ -409,17 +406,15 @@ fn decoding_outside_of_area_fails() {
     assert_eq!(None, decode::<na::Vec2<f64>>(100, 10));
 }
 
-fn get_parent<V: VecLike>(mut index: V, level: usize, top_lvl_side: usize) -> Option<V> {
+fn get_parent<V>(mut index: V, level: usize) -> V
+    where V: VecLike
+{
     let dim = V::dim(None);
     let split = 2usize.pow(level as u32);
     for n in 0..dim {
-        if index[n] >= top_lvl_side as f64 {
-            // TODO: Fix getting parent outside of area.
-            // return None;
-        }
         index[n] = (index[n] / split as f64).floor();
     }
-    Some(index)
+    index
 }
 
 #[test]
@@ -428,20 +423,7 @@ fn getting_parent_works() {
     let divides = 4;
     let cells_per_cell = 2usize.pow(divides as u32);
     let testee = na::Vec2::new(1., 2.);
-    assert_eq!(Some(testee),
-               get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),
-                          divides,
-                          cells_per_side));
-}
-
-#[test]
-#[ignore]
-fn getting_parent_outside_of_area_fails() {
-    let cells_per_side = 3;
-    let divides = 4;
-    let cells_per_cell = 2usize.pow(divides as u32);
-    let testee = na::Vec2::new(1., 3.);
-    assert_eq!(None::<na::Vec2<f64>>,
+    assert_eq!(testee,
                get_parent((testee * cells_per_cell as f64) + na::Vec2::new(0., 15.),
                           divides,
                           cells_per_side));

@@ -1,12 +1,12 @@
 [package]
 name = "poisson"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["WaDelma <>"]
 description = "Poisson-disk distribution generator."
 repository = "https://github.com/WaDelma/poisson"
 documentation = "https://WaDelma.github.io/poisson/"
 readme = "README.md"
-keywords = [ "poisson", "distribution", "poisson-disk", "multidimensional" ]
+keywords = [ "distribution", "poisson-disk", "multidimensional", "object distribution", "sampling", "blue noise" ]
 license = "MIT"
 
 [dependencies]
@@ -15,6 +15,3 @@ nalgebra = "0.2.18"
 num = "0.1.25"
 lazy_static = "0.1.11"
 modulo = "0.1.0"
-
-[dev-dependencies]
-image = "=0.3.11"

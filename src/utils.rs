@@ -31,7 +31,9 @@ impl<'a, V> Iterator for CombiIter<'a, V> where V: VecLike {
     }
 }
 
-pub fn each_combination<'a, V: VecLike>(choices: &[f64]) -> CombiIter<V> {
+pub fn each_combination<'a, V>(choices: &[f64]) -> CombiIter<V>
+    where V: VecLike
+{
     CombiIter {
         cur: 0,
         choices: choices,

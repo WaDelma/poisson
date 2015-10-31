@@ -6,10 +6,9 @@ use std::fmt::Debug;
 
 use na::Norm;
 
-pub fn test_with_samples<T: Debug + VecLike>(samples: u32,
-                                         relative_radius: f64,
-                                         seeds: u32,
-                                         periodicity: bool) {
+pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool)
+    where T: Debug + VecLike
+{
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = PoissonDisk::new(rand);
@@ -41,7 +40,9 @@ pub fn test_with_samples<T: Debug + VecLike>(samples: u32,
     }
 }
 
-pub fn assert_legal_poisson<T: Debug + VecLike>(vecs: &Vec<T>, radius: f64) {
+pub fn assert_legal_poisson<T>(vecs: &Vec<T>, radius: f64)
+    where T: Debug + VecLike
+{
     for &v1 in vecs {
         for &v2 in vecs {
             if v1 == v2 {
