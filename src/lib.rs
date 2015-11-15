@@ -60,7 +60,7 @@ impl<T> VecLike for T where T:
     Dim +
     Copy {}
 
-/// Builds PoissonGen with wanted properties.    
+/// Builds PoissonGen with wanted properties.
 ///
 /// # Examples
 ///
@@ -222,8 +222,16 @@ impl<R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
         let choices = (0..grid.side).map(|i| i as f64).collect::<Vec<_>>();
         indices.extend(each_combination::<V>(&choices));
         let mut level = 0;
+        let a = match dim {
+            2 => {0.3},
+            3 => {0.3},
+            4 => {0.6},
+            5 => {10.},
+            6 => {700.},
+            _ => {700. + 100. * dim as f64},
+        };
         while !indices.is_empty() && level < f64::MANTISSA_DIGITS as usize {
-            if self.throw_samples(&mut grid, &mut indices, level, 0.3) {
+            if self.throw_samples(&mut grid, &mut indices, level, a) {
                 self.subdivide(&mut grid, &mut indices, level);
                 level += 1;
             }
