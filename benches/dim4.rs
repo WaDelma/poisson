@@ -17,8 +17,7 @@ fn bench_4d_1_80_normal(b: &mut Bencher) {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let mut poisson = PoissonDisk::new(rand.clone()).build_samples::<Vect>(1, 0.8);
     b.iter(|| {
-        let mut vecs = vec![];
-        poisson.generate(&mut vecs);
+        let vecs = poisson.generate();
         black_box(vecs);
     });
 }
@@ -28,8 +27,7 @@ fn bench_4d_10_80_normal(b: &mut Bencher) {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let mut poisson = PoissonDisk::new(rand.clone()).build_samples::<Vect>(10, 0.8);
     b.iter(|| {
-        let mut vecs = vec![];
-        poisson.generate(&mut vecs);
+        let vecs = poisson.generate();
         black_box(vecs);
     });
 }
@@ -39,8 +37,7 @@ fn bench_4d_100_80_normal(b: &mut Bencher) {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let mut poisson = PoissonDisk::new(rand.clone()).build_samples::<Vect>(100, 0.8);
     b.iter(|| {
-        let mut vecs = vec![];
-        poisson.generate(&mut vecs);
+        let vecs = poisson.generate();
         black_box(vecs);
     });
 }

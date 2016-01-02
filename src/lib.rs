@@ -213,7 +213,7 @@ impl<R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
         self.radius
     }
 
-    /// Generatas a vector with Poisson-disk distribution in area [0, 1]²
+    /// Generates a vector with Poisson-disk distribution in area [0, 1]²
     pub fn generate(&mut self) -> Vec<V> {
         let dim = V::dim(None);
         let mut grid = Grid::new(self.radius, self.periodicity);
