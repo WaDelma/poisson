@@ -106,12 +106,7 @@ impl<R> PoissonDisk<R> where R: Rng {
     {
         assert!(0. < radius);
         assert!(radius <= 1.);
-        PoissonGen {
-            dim: PhantomData,
-            radius: radius * (2f64.sqrt() / 2.),
-            rand: self.rand,
-            periodicity: self.periodicity,
-        }
+        PoissonGen::new(self.rand, radius * (2f64.sqrt() / 2.), self.periodicity)
     }
 
     /// Builds the generator with radius specified.
@@ -121,12 +116,7 @@ impl<R> PoissonDisk<R> where R: Rng {
     {
         assert!(0. < radius);
         assert!(radius <= (2f64.sqrt() / 2.));
-        PoissonGen {
-            dim: PhantomData,
-            radius: radius,
-            rand: self.rand,
-            periodicity: self.periodicity,
-        }
+        PoissonGen::new(self.rand, radius, self.periodicity)
     }
 
     /// Builds the generator with radius calculated so that approximately specified number of samples are generated.
@@ -140,25 +130,8 @@ impl<R> PoissonDisk<R> where R: Rng {
         assert!(samples > 0);
         assert!(relative_radius >= 0.);
         assert!(relative_radius <= 1.);
-        PoissonGen {
-            dim: PhantomData,
-            radius: math::calc_radius::<V>(samples, relative_radius, self.periodicity),
-            rand: self.rand,
-            periodicity: self.periodicity,
-        }
+        PoissonGen::new(self.rand, math::calc_radius::<V>(samples, relative_radius, self.periodicity), self.periodicity)
     }
-}
-
-/// Generates Poisson-disk distribution in [0, 1]² area with O(N) time and space complexity relative to the number of samples generated.
-/// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
-pub struct PoissonGen<R, V>
-    where R: Rng,
-          V: VecLike
-{
-    dim: PhantomData<V>,
-    rand: R,
-    radius: f64,
-    periodicity: bool,
 }
 
 struct Grid<V>
@@ -200,6 +173,110 @@ impl<V> Grid<V> where V: VecLike {
     }
 }
 
+/// Generates Poisson-disk distribution in [0, 1]² area with O(N) time and space complexity relative to the number of samples generated.
+/// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
+pub struct PoissonGen<R, V>
+    where R: Rng,
+          V: VecLike
+{
+    dim: PhantomData<V>,
+    rand: R,
+    radius: f64,
+    periodicity: bool,
+}
+
+impl<R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
+    fn new(rand: R, radius: f64, periodicity: bool) -> PoissonGen<R, V> {
+        PoissonGen {
+            dim: PhantomData,
+            radius: radius,
+            rand: rand,
+            periodicity: periodicity,
+        }
+    }
+}
+
+pub struct PoissonIter<'a, R, V> where R: Rng + 'a, V: VecLike + 'a {
+    poisson: &'a mut PoissonGen<R, V>,
+    grid: Grid<V>,
+    indices: Vec<V>,
+    level: usize,
+    a: f64,
+    range: Range<usize>,
+    throws: usize,
+}
+
+impl<'a, R, V> IntoIterator for &'a mut PoissonGen<R, V> where R: Rng, V: VecLike {
+    type IntoIter = PoissonIter<'a, R, V>;
+    type Item = V;
+    fn into_iter(self) -> PoissonIter<'a, R, V> {
+        let dim = V::dim(None);
+        let grid = Grid::new(self.radius, self.periodicity);
+        let capacity = grid.cells() * dim;
+        let mut indices = Vec::with_capacity(capacity);
+        let choices = (0..grid.side).map(|i| i as f64).collect::<Vec<_>>();
+        let a = match dim {
+            2 => {0.3},
+            3 => {0.3},
+            4 => {0.6},
+            5 => {10.},
+            6 => {700.},
+            _ => {700. + 100. * dim as f64},
+        };
+        indices.extend(each_combination::<V>(&choices));
+        let range = Range::new(0, indices.len());
+        let throws = (a * indices.len() as f64).ceil() as usize;
+        PoissonIter {
+            poisson: self,
+            grid: grid,
+            indices: indices,
+            level: 0,
+            a: a,
+            range: range,
+            throws: throws,
+        }
+    }
+}
+
+impl<'a, R, V> Iterator for PoissonIter<'a, R, V> where R: Rng, V: VecLike {
+    type Item = V;
+    fn next(&mut self) -> Option<V> {
+        while !self.indices.is_empty() && self.level < f64::MANTISSA_DIGITS as usize {
+            while self.throws > 0 {
+                self.throws -= 1;
+                let index = self.range.ind_sample(&mut self.poisson.rand);
+                let cur = self.indices[index];
+                let parent = get_parent(cur, self.level);
+                if self.grid.get(parent).expect("Indexing base grid by valid parent failed.").is_some() {
+                    self.indices.swap_remove(index);
+                    if self.indices.is_empty() {
+                        return None;
+                    }
+                    self.range = Range::new(0, self.indices.len());
+                } else {
+                    let sample = choose_random_sample(&mut self.poisson.rand, &self.grid, cur, self.level);
+                    if is_disk_free(&self.grid, cur, self.level, sample, self.poisson.radius, self.poisson.periodicity) {
+                        swap(self.grid.get_mut(parent).expect("Indexing base grid by already indexed valid parent failed."), &mut Some(sample));
+                        self.indices.swap_remove(index);
+                        if !self.indices.is_empty() {
+                            self.range = Range::new(0, self.indices.len());
+                        }
+                        return Some(sample);
+                    }
+                }
+            }
+            subdivide(&mut self.indices, &self.grid, self.level, self.poisson.radius, self.poisson.periodicity);
+            if self.indices.is_empty() {
+                return None;
+            }
+            self.range = Range::new(0, self.indices.len());
+            self.throws = (self.a * self.indices.len() as f64).ceil() as usize;
+            self.level += 1;
+        }
+        None
+    }
+}
+
 impl<R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: f64) {
@@ -215,106 +292,47 @@ impl<R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
 
     /// Generates a vector with Poisson-disk distribution in area [0, 1]²
     pub fn generate(&mut self) -> Vec<V> {
-        let dim = V::dim(None);
-        let mut grid = Grid::new(self.radius, self.periodicity);
-        let capacity = grid.cells() * dim;
-        let mut indices = Vec::with_capacity(capacity);
-        let choices = (0..grid.side).map(|i| i as f64).collect::<Vec<_>>();
-        indices.extend(each_combination::<V>(&choices));
-        let mut level = 0;
-        let a = match dim {
-            2 => {0.3},
-            3 => {0.3},
-            4 => {0.6},
-            5 => {10.},
-            6 => {700.},
-            _ => {700. + 100. * dim as f64},
-        };
-        while !indices.is_empty() && level < f64::MANTISSA_DIGITS as usize {
-            if self.throw_samples(&mut grid, &mut indices, level, a) {
-                self.subdivide(&mut grid, &mut indices, level);
-                level += 1;
-            }
-            // If this assert fails then a is too small or subdivide code is broken
-            // assert_eq!(capacity, indices.capacity());
-        }
-        grid.into_samples()
+        self.into_iter().collect()
     }
 }
 
-impl <R, V> PoissonGen<R, V> where R: Rng, V: VecLike {
-
-    fn throw_samples(&mut self,
-                     grid: &mut Grid<V>,
-                     indices: &mut Vec<V>,
-                     level: usize,
-                     a: f64)
-                     -> bool {
-        let mut range = Range::new(0, indices.len());
-        let throws = (a * indices.len() as f64).ceil() as usize;
-        for _ in 0..throws {
-            let index = range.ind_sample(&mut self.rand);
-            let cur = indices[index];
-            let parent = get_parent(cur, level);
-            if grid.get(parent).expect("Indexing base grid by valid parent failed.").is_some() {
-                indices.swap_remove(index);
-                if indices.is_empty() {
-                    return false;
-                }
-                range = Range::new(0, indices.len());
-            } else {
-                let sample = choose_random_sample(&mut self.rand, &grid, cur, level);
-                if self.is_disk_free(&grid, cur, level, sample) {
-                    swap(grid.get_mut(parent).expect("Indexing base grid by already indexed valid parent failed."), &mut Some(sample));
-                    indices.swap_remove(index);
-                    if indices.is_empty() {
-                        return false;
-                    }
-                    range = Range::new(0, indices.len());
-                }
-            }
-        }
-        true
-    }
-
-    fn subdivide(&self, grid: &mut Grid<V>, indices: &mut Vec<V>, level: usize) {
-        let choices = &[0., 1.];
-        indices.flat_map_inplace(|i| {
-            each_combination::<V>(choices)
-                .map(move |n| n + i * 2.)
-                .filter(|c| !self.covered(&grid, *c, level + 1))
-        });
-    }
-
-    fn is_disk_free(&self, grid: &Grid<V>, index: V, level: usize, c: V) -> bool {
-        let parent = get_parent(index, level);
-        let sqradius = (2. * self.radius).powi(2);
-        // TODO: Does unnessary checking...
-        each_combination(&[-2., -1., 0., 1., 2.])
-            .filter_map(|t| grid.get(parent + t))
-            .filter_map(|t| *t)
-            .all(|v| sqdist(v, c, self.periodicity) >= sqradius)
-    }
-
-    fn covered(&self, grid: &Grid<V>, index: V, level: usize) -> bool {
-        let parent = get_parent(index, level);
-        each_combination(&[-2., -1., 0., 1., 2.])
-            .filter_map(|t| grid.get(parent + t))
-            .filter_map(|t| *t)
-            .any(|v| self.is_cell_covered(&v, index, grid, level))
-    }
-
-    fn is_cell_covered(&self, v: &V, index: V, grid: &Grid<V>, level: usize) -> bool {
-        let side = 2usize.pow(level as u32);
-        let spacing = grid.cell / side as f64;
-        let sqradius = (2. * self.radius).powi(2);
-        each_combination(&[0., 1.])
-            .map(|t| (index + t) * spacing)
-            .all(|t| sqdist(t, *v, self.periodicity) < sqradius)
-    }
+fn subdivide<V>(indices: &mut Vec<V>, grid: &Grid<V>, level: usize, radius: f64, periodicity: bool) where V: VecLike {
+    let choices = &[0., 1.];
+    indices.flat_map_inplace(|i| {
+        each_combination::<V>(choices)
+            .map(move |n| n + i * 2.)
+            .filter(|c| !covered(grid, *c, level + 1, radius, periodicity))
+    });
 }
 
-fn sqdist<V: VecLike>(v1: V, v2: V, periodicity: bool) -> f64 {
+fn is_disk_free<V>(grid: &Grid<V>, index: V, level: usize, c: V, radius: f64, periodicity: bool) -> bool where V: VecLike {
+    let parent = get_parent(index, level);
+    let sqradius = (2. * radius).powi(2);
+    // TODO: Does unnessary checking...
+    each_combination(&[-2., -1., 0., 1., 2.])
+        .filter_map(|t| grid.get(parent + t))
+        .filter_map(|t| *t)
+        .all(|v| sqdist(v, c, periodicity) >= sqradius)
+}
+
+fn covered<V>(grid: &Grid<V>, index: V, level: usize, radius: f64, periodicity: bool) -> bool where V: VecLike {
+    let parent = get_parent(index, level);
+    each_combination(&[-2., -1., 0., 1., 2.])
+        .filter_map(|t| grid.get(parent + t))
+        .filter_map(|t| *t)
+        .any(|v| is_cell_covered(&v, index, grid, level, radius, periodicity))
+}
+
+fn is_cell_covered<V>(v: &V, index: V, grid: &Grid<V>, level: usize, radius: f64, periodicity: bool) -> bool where V: VecLike {
+    let side = 2usize.pow(level as u32);
+    let spacing = grid.cell / side as f64;
+    let sqradius = (2. * radius).powi(2);
+    each_combination(&[0., 1.])
+        .map(|t| (index + t) * spacing)
+        .all(|t| sqdist(t, *v, periodicity) < sqradius)
+}
+
+fn sqdist<V>(v1: V, v2: V, periodicity: bool) -> f64 where V: VecLike {
     let diff = v2 - v1;
     if periodicity {
         each_combination(&[-1., 0., 1.])
