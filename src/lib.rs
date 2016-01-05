@@ -29,7 +29,7 @@ extern crate lazy_static;
 use std::cmp::PartialEq;
 use std::ops::{Sub, Mul, Add, Div, IndexMut};
 use std::marker::PhantomData;
-use std::mem::swap;
+use std::mem::replace;
 use std::f64;
 
 use utils::{each_combination, Inplace};
@@ -277,7 +277,7 @@ impl<'a, R, V> Iterator for PoissonIter<'a, R, V> where R: Rng, V: VecLike {
                 } else {
                     let sample = choose_random_sample(&mut self.poisson.rand, &self.grid, cur, self.level);
                     if is_disk_free(&self.grid, &self.poisson, cur, self.level, sample) {
-                        swap(self.grid.get_mut(parent).expect("Indexing base grid by already indexed valid parent failed."), &mut Some(sample));
+                        replace(self.grid.get_mut(parent).expect("Indexing base grid by already indexed valid parent failed."), Some(sample));
                         self.indices.swap_remove(index);
                         if !self.indices.is_empty() {
                             self.range = Range::new(0, self.indices.len());
@@ -344,7 +344,7 @@ fn is_cell_covered<R, V>(v: &V, grid: &Grid<V>, poisson: &PoissonGen<R, V>, inde
 fn is_disk_free<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, index: V, level: usize, c: V) -> bool where R: Rng, V: VecLike {
     let parent = get_parent(index, level);
     let sqradius = (2. * poisson.radius).powi(2);
-    // TODO: This unnessary checks: (-2, -2), (-2, 2), (2, 2) and (2, 2)
+    // TODO: This does unnessary checks at corners...
     each_combination(&[-2., -1., 0., 1., 2.])
         .filter_map(|t| grid.get(parent + t))
         .filter_map(|t| *t)
