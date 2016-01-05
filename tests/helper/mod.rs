@@ -9,6 +9,7 @@ use na::Norm;
 pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool)
     where T: Debug + VecLike
 {
+    let dim = T::dim(None);
     for i in 0..seeds {
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = PoissonDisk::new(rand);
@@ -16,10 +17,31 @@ pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, peri
             poisson = poisson.perioditic();
         }
         let mut poisson = poisson.build_samples::<T>(samples, relative_radius);
-        let vecs = poisson.generate();
+        let mut vecs = vec![];
+        let mut hints = vec![];
+        {
+            let mut iter = poisson.into_iter();
+            while let Some(v) = iter.next() {
+                if let (low, Some(high)) = iter.size_hint() {
+                    hints.push((low, high));
+                } else {
+                    panic!("There wasn't hint for {}th iteration.", hints.len());
+                }
+                vecs.push(v);
+            }
+        }
+        let len = hints.len();
+        for (n, (l, h)) in hints.into_iter().enumerate() {
+            let remaining = len - (n + 1);
+            assert!(l <= remaining, "Lower bound of hint should be smaller than or equal to actual: {} <= {}", l, remaining);
+            assert!(h >= remaining, "Upper bound of hint should be larger than or equal to actual: {} >= {}", h, remaining);
+        }
+        //TODO: Figure out how to check if distribution is maximal.
+        // let packing_density = vecs.len() as f64 * ::sphere::sphere_volume(poisson.radius(), dim as u64);
+        // println!("{}", packing_density);
+        // panic!();
         let vecs = if periodicity {
             let mut vecs2 = vec![];
-            let dim = T::dim(None);
             for n in 0..3i64.pow(dim as u32) {
                 let mut t = T::zero();
                 let mut div = n;

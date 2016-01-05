@@ -15,6 +15,7 @@ nalgebra = "0.2.18"
 num = "0.1.25"
 lazy_static = "0.1.11"
 modulo = "0.1.0"
+sphere = "0.1.0"
 
 [profile.test]
 opt-level = 3

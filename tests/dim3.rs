@@ -2,6 +2,8 @@ extern crate poisson;
 
 extern crate rand;
 
+extern crate sphere;
+
 extern crate nalgebra as na;
 pub type Vect = na::Vec3<f64>;
 

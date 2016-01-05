@@ -67,7 +67,7 @@ fn newton(samples: u32, dim: usize) -> u32 {
 pub fn calc_radius<T>(samples: u32, relative_radius: f64, periodicity: bool) -> f64
     where T: VecLike
 {
-    let dim = T::dim(None) as usize;
+    let dim = T::dim(None);
     let samples = if periodicity {
         samples
     } else {
