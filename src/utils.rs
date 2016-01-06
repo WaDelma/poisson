@@ -10,7 +10,8 @@ pub struct CombiIter<'a, V>
     _marker: PhantomData<V>,
 }
 
-impl<'a, V> Iterator for CombiIter<'a, V> where V: VecLike {
+impl<'a, V> Iterator for CombiIter<'a, V> where V: VecLike
+{
     type Item = V;
     fn next(&mut self) -> Option<Self::Item> {
         let dim = V::dim(None);
