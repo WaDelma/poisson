@@ -6,49 +6,10 @@ use rand::distributions::IndependentSample;
 
 use sphere::sphere_volume;
 
-use modulo::Mod;
-
 use std::mem::replace;
 use std::f64;
 
-use utils::{each_combination, Inplace};
-
-#[derive(Clone)]
-struct Grid<V>
-    where V: VecLike
-{
-    data: Vec<Option<V>>,
-    side: usize,
-    cell: f64,
-    periodicity: bool,
-}
-
-impl<V> Grid<V> where V: VecLike
-{
-    fn new(radius: f64, periodicity: bool) -> Grid<V> {
-        let dim = V::dim(None);
-        let cell = (2. * radius) / (dim as f64).sqrt();
-        let side = (1. / cell) as usize;
-        Grid {
-            cell: cell,
-            side: side,
-            data: vec![None; side.pow(dim as u32)],
-            periodicity: periodicity,
-        }
-    }
-
-    fn get(&self, index: V) -> Option<&Option<V>> {
-        encode(&index, self.side, self.periodicity).map(|t| &self.data[t])
-    }
-
-    fn get_mut(&mut self, index: V) -> Option<&mut Option<V>> {
-        encode(&index, self.side, self.periodicity).map(move |t| &mut self.data[t])
-    }
-
-    fn cells(&self) -> usize {
-        self.data.len()
-    }
-}
+use utils::{each_combination, calculate, Inplace, Grid};
 
 #[derive(Clone)]
 pub struct PoissonAlgo<V>
@@ -126,7 +87,7 @@ impl<V> PoissonAlgo<V>
                     }
                 }
             }
-            subdivide(&mut self.indices, &self.grid, &poisson, self.level);
+            subdivide(&mut self.indices, &self.grid, &self.outside, &poisson, self.level);
             if self.indices.is_empty() {
                 return None;
             }
@@ -145,11 +106,9 @@ impl<V> PoissonAlgo<V>
         let dim = V::dim(None);
         let side = 2usize.pow(self.level as u32);
         let spacing = self.grid.cell / side as f64;
-        let cell_volume = spacing.powi(dim as i32);
+        let grid_volume = self.indices.len() as f64 * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(2. * poisson.radius, dim as u64);
-        let mut lower = ((self.indices.len() as f64 * cell_volume) /
-                         sphere_volume)
-                            .floor() as usize;
+        let mut lower = (grid_volume / sphere_volume).floor() as usize;
         if lower > 0 {
             lower -= 1;
         }
@@ -160,24 +119,35 @@ impl<V> PoissonAlgo<V>
 
     pub fn insert(&mut self, value: V) {
         //TODO: Figure out when the value should be returned by iterator if at all.
-        let dim = V::dim(None);
-        let mut i = value * self.grid.side as f64;
-        for n in 0..dim {
-            i[n] = i[n].floor();
-        }
-        if let Some(g) = self.grid.get_mut(i) {
-            if let &mut None = g {
-                replace(g, Some(value));
-            } else {
-                self.outside.push(value);
-            }
-        } else {
+        // let mut i = value * self.grid.side as f64;
+        // for n in i.iter_mut() {
+        //     // println!("{} {}", n.floor(), self.grid.side);
+        //     calculate(n, |n| n.floor());
+        // }
+        // if let Some(g) = self.grid.get_mut(i) {
+        //     if g.is_some() {
+        //         self.outside.push(value);
+        //     } else {
+        //         replace(g, Some(value));
+        //     }
+        // } else {
+            //TODO: Currently manual addition incurs O(n^2) time
             self.outside.push(value);
+        // }
+    }
+
+    pub fn stays_legal<R>(&self, poisson: &PoissonGen<R, V>, sample: V) -> bool
+        where R: Rng
+    {
+        let mut cur = sample.clone();
+        for c in cur.iter_mut() {
+            calculate(c, |c| (*c * self.grid.side as f64).floor());
         }
+        is_disk_free(&self.grid, &poisson, cur, 0, sample) && is_valid(&poisson, &self.outside, sample)
     }
 }
 
-fn subdivide<R, V>(indices: &mut Vec<V>, grid: &Grid<V>, poisson: &PoissonGen<R, V>, level: usize)
+fn subdivide<R, V>(indices: &mut Vec<V>, grid: &Grid<V>, outside: &[V], poisson: &PoissonGen<R, V>, level: usize)
     where R: Rng,
           V: VecLike
 {
@@ -185,46 +155,28 @@ fn subdivide<R, V>(indices: &mut Vec<V>, grid: &Grid<V>, poisson: &PoissonGen<R,
     indices.flat_map_inplace(|i| {
         each_combination::<V>(choices)
             .map(move |n| n + i * 2.)
-            .filter(|c| !covered(grid, poisson, *c, level + 1))
+            .filter(|c| !covered(grid, poisson, outside, *c, level + 1))
     });
 }
 
-fn is_valid<R, V>(poisson: &PoissonGen<R, V>, samples: &Vec<V>, sample: V) -> bool
-    where R: Rng,
-          V: VecLike
-{
-    let sqradius = (2. * poisson.radius).powi(2);
-    samples
-        .iter()
-        .all(|t| sqdist(*t, sample, poisson.periodicity) > sqradius)
-}
-
-fn covered<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, index: V, level: usize) -> bool
-    where R: Rng,
-          V: VecLike
-{
-    let parent = get_parent(index, level);
-    each_combination(&[-2., -1., 0., 1., 2.])
-        .filter_map(|t| grid.get(parent + t))
-        .filter_map(|t| *t)
-        .any(|v| is_cell_covered(&v, grid, poisson, index, level))
-}
-
-fn is_cell_covered<R, V>(v: &V,
-                         grid: &Grid<V>,
-                         poisson: &PoissonGen<R, V>,
-                         index: V,
-                         level: usize)
-                         -> bool
+fn covered<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, outside: &[V], index: V, level: usize) -> bool
     where R: Rng,
           V: VecLike
 {
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / side as f64;
     let sqradius = (2. * poisson.radius).powi(2);
+    let parent = get_parent(index, level);
     each_combination(&[0., 1.])
         .map(|t| (index + t) * spacing)
-        .all(|t| sqdist(t, *v, poisson.periodicity) < sqradius)
+        .all(|t| {
+            each_combination(&[-2., -1., 0., 1., 2.])
+                .filter_map(|t| grid.get(parent + t))
+                .filter_map(|t| *t)
+                .any(|v| sqdist(t, v, poisson.periodicity) < sqradius) ||
+            !is_valid(poisson, &outside, t)
+        })
+
 }
 
 fn is_disk_free<R, V>(grid: &Grid<V>,
@@ -245,6 +197,16 @@ fn is_disk_free<R, V>(grid: &Grid<V>,
         .all(|v| sqdist(v, c, poisson.periodicity) >= sqradius)
 }
 
+fn is_valid<R, V>(poisson: &PoissonGen<R, V>, samples: &[V], sample: V) -> bool
+    where R: Rng,
+          V: VecLike
+{
+    let sqradius = (2. * poisson.radius).powi(2);
+    samples
+        .iter()
+        .all(|t| sqdist(*t, sample, poisson.periodicity) >= sqradius)
+}
+
 fn sqdist<V>(v1: V, v2: V, periodicity: bool) -> f64
     where V: VecLike
 {
@@ -262,13 +224,12 @@ fn choose_random_sample<V, R>(rand: &mut R, grid: &Grid<V>, index: V, level: usi
     where V: VecLike,
           R: Rng
 {
-    let dim = V::dim(None);
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / side as f64;
     let mut result = index * spacing;
-    for n in 0..dim {
+    for n in result.iter_mut() {
         let place = f64::rand(rand);
-        result[n] += place * spacing;
+        calculate(n, |n| *n + place * spacing);
     }
     result
 }
@@ -290,74 +251,12 @@ fn random_point_is_between_right_values_top_lvl() {
     }
 }
 
-fn encode<V>(v: &V, side: usize, periodicity: bool) -> Option<usize>
-    where V: VecLike
-{
-    let mut index = 0;
-    for n in 0..V::dim(None) {
-        let mut cur = v[n] as usize;
-        if periodicity {
-            cur = (v[n] as isize).modulo(side as isize) as usize;
-        } else if v[n] < 0. || v[n] >= side as f64 {
-            return None;
-        }
-        index = (index + cur) * side;
-    }
-    Some(index / side)
-}
-
-#[cfg(test)]
-fn decode<V>(index: usize, side: usize) -> Option<V>
-    where V: VecLike
-{
-    use num::Zero;
-    let dim = V::dim(None);
-    if index >= side.pow(dim as u32) {
-        return None;
-    }
-    let mut result = V::zero();
-    let mut last = index;
-    for n in (0..dim).rev() {
-        let cur = last / side;
-        let value = (last - cur * side) as f64;
-        result[n] = value;
-        last = cur;
-    }
-    Some(result)
-}
-
-#[test]
-fn encoding_decoding_works() {
-    let n = ::na::Vec2::new(10., 7.);
-    assert_eq!(n, decode(encode(&n, 15, false).unwrap(), 15).unwrap());
-}
-
-#[test]
-fn encoding_decoding_at_edge_works() {
-    let n = ::na::Vec2::new(14., 14.);
-    assert_eq!(n, decode(encode(&n, 15, false).unwrap(), 15).unwrap());
-}
-
-#[test]
-fn encoding_outside_of_area_fails() {
-    let n = ::na::Vec2::new(9., 7.);
-    assert_eq!(None, encode(&n, 9, false));
-    let n = ::na::Vec2::new(7., 9.);
-    assert_eq!(None, encode(&n, 9, false));
-}
-
-#[test]
-fn decoding_outside_of_area_fails() {
-    assert_eq!(None, decode::<::na::Vec2<f64>>(100, 10));
-}
-
 fn get_parent<V>(mut index: V, level: usize) -> V
     where V: VecLike
 {
-    let dim = V::dim(None);
     let split = 2usize.pow(level as u32);
-    for n in 0..dim {
-        index[n] = (index[n] / split as f64).floor();
+    for n in index.iter_mut() {
+        calculate(n, |n| (*n / split as f64).floor());
     }
     index
 }

@@ -6,6 +6,7 @@
 //! with any other disk of other points
 //! * Samples fill the space uniformly
 //!
+
 extern crate modulo;
 
 extern crate sphere;
@@ -16,13 +17,13 @@ extern crate num;
 use num::{Zero, One};
 
 extern crate nalgebra as na;
-use na::{Dim, Norm};
+use na::{Dim, Norm, Iterable, IterableMut};
 
 #[macro_use]
 extern crate lazy_static;
 
 use std::cmp::PartialEq;
-use std::ops::{Sub, Mul, Add, Div, IndexMut};
+use std::ops::{Sub, Mul, Add, Div};
 use std::marker::PhantomData;
 
 use algo::PoissonAlgo;
@@ -33,7 +34,8 @@ mod utils;
 
 /// Describes what traits the algorithm needs to be able to work.
 pub trait VecLike:
-    IndexMut<usize, Output = f64> +
+    IterableMut<f64> +
+    Iterable<f64> +
     Add<Output = Self> +
     Sub<Output = Self> +
     Mul<f64, Output = Self> +
@@ -45,7 +47,8 @@ pub trait VecLike:
     Dim +
     Copy {}
 impl<T> VecLike for T where T:
-    IndexMut<usize, Output = f64> +
+    IterableMut<f64> +
+    Iterable<f64> +
     Add<Output = T> +
     Sub<Output = T> +
     Mul<f64, Output = T> +
@@ -243,6 +246,10 @@ impl<R, V> PoissonIter<R, V>
     pub fn periodicity(&self) -> bool {
         self.poisson.periodicity()
     }
+
+    pub fn stays_legal(&self, value: V) -> bool {
+        self.algo.stays_legal(&self.poisson, value)
+    }
 }
 
 impl<R, V> Iterator for PoissonIter<R, V>
@@ -308,6 +315,10 @@ impl<'a, R, V> PoissonIterMut<'a, R, V>
     /// Returns the periodicity of the generator.
     pub fn periodicity(&self) -> bool {
         self.poisson.periodicity()
+    }
+
+    pub fn stays_legal(&self, value: V) -> bool {
+        self.algo.stays_legal(&self.poisson, value)
     }
 }
 

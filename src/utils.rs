@@ -1,6 +1,107 @@
 use VecLike;
 
+use modulo::Mod;
+
 use std::marker::PhantomData;
+use std::mem::replace;
+
+#[derive(Clone)]
+pub struct Grid<V>
+    where V: VecLike
+{
+    pub data: Vec<Option<V>>,
+    pub side: usize,
+    pub cell: f64,
+    periodicity: bool,
+}
+
+impl<V> Grid<V> where V: VecLike
+{
+    pub fn new(radius: f64, periodicity: bool) -> Grid<V> {
+        let dim = V::dim(None);
+        let cell = (2. * radius) / (dim as f64).sqrt();
+        let side = (1. / cell) as usize;
+        Grid {
+            cell: cell,
+            side: side,
+            data: vec![None; side.pow(dim as u32)],
+            periodicity: periodicity,
+        }
+    }
+
+    pub fn get(&self, index: V) -> Option<&Option<V>> {
+        encode(&index, self.side, self.periodicity).map(|t| &self.data[t])
+    }
+
+    pub fn get_mut(&mut self, index: V) -> Option<&mut Option<V>> {
+        encode(&index, self.side, self.periodicity).map(move |t| &mut self.data[t])
+    }
+
+    pub fn cells(&self) -> usize {
+        self.data.len()
+    }
+}
+
+pub fn encode<V>(v: &V, side: usize, periodicity: bool) -> Option<usize>
+    where V: VecLike
+{
+    let mut index = 0;
+    for &n in v.iter() {
+        let mut cur = n as usize;
+        if periodicity {
+            cur = (n as isize).modulo(side as isize) as usize;
+        } else if n < 0. || n >= side as f64 {
+            return None;
+        }
+        index = (index + cur) * side;
+    }
+    Some(index / side)
+}
+
+#[cfg(test)]
+pub fn decode<V>(index: usize, side: usize) -> Option<V>
+    where V: VecLike
+{
+    use num::Zero;
+    let dim = V::dim(None);
+    if index >= side.pow(dim as u32) {
+        return None;
+    }
+    let mut result = V::zero();
+    let mut last = index;
+    for n in result.iter_mut().rev() {
+        let cur = last / side;
+        let value = (last - cur * side) as f64;
+        replace(n, value);
+        last = cur;
+    }
+    Some(result)
+}
+
+#[test]
+fn encoding_decoding_works() {
+    let n = ::na::Vec2::new(10., 7.);
+    assert_eq!(n, decode(encode(&n, 15, false).unwrap(), 15).unwrap());
+}
+
+#[test]
+fn encoding_decoding_at_edge_works() {
+    let n = ::na::Vec2::new(14., 14.);
+    assert_eq!(n, decode(encode(&n, 15, false).unwrap(), 15).unwrap());
+}
+
+#[test]
+fn encoding_outside_of_area_fails() {
+    let n = ::na::Vec2::new(9., 7.);
+    assert_eq!(None, encode(&n, 9, false));
+    let n = ::na::Vec2::new(7., 9.);
+    assert_eq!(None, encode(&n, 9, false));
+}
+
+#[test]
+fn decoding_outside_of_area_fails() {
+    assert_eq!(None, decode::<::na::Vec2<f64>>(100, 10));
+}
 
 pub struct CombiIter<'a, V>
     where V: VecLike
@@ -22,10 +123,10 @@ impl<'a, V> Iterator for CombiIter<'a, V> where V: VecLike
             let mut result = V::zero();
             let mut div = self.cur;
             self.cur += 1;
-            for n in 0..dim {
+            for n in result.iter_mut() {
                 let rem = div % len;
                 div /= len;
-                result[n] = self.choices[rem as usize];
+                replace(n, self.choices[rem as usize]);
             }
             Some(result)
         }
@@ -76,4 +177,11 @@ fn mapping_inplace_works() {
     result.flat_map_inplace(&func);
     let mut expected = vec.into_iter().flat_map(func).collect::<Vec<_>>();
     assert_eq!(expected.sort(), result.sort());
+}
+
+pub fn calculate<T, F>(value: &mut T, fun: F)
+    where F: FnOnce(&mut T) -> T
+{
+    let v = (fun)(value);
+    ::std::mem::replace(value, v);
 }

@@ -1,22 +1,42 @@
 #![allow(unused)]
-use poisson::{PoissonDisk, VecLike};
+use poisson::{PoissonIter, PoissonDisk, VecLike};
 
 use rand::{SeedableRng, XorShiftRng};
 
 use std::fmt::Debug;
+use std::mem::replace;
 
 use na::Norm;
 
+pub fn print_v<V: VecLike>(v: V) -> String {
+    let mut result = "(".to_owned();
+    for i in v.iter() {
+        result.push_str(&format!("{}, ", i));
+    }
+    if V::dim(None) != 0 {
+        result.pop();
+    }
+    result.push(')');
+    result
+}
+
+
+pub enum When {
+    Always,
+    Sometimes,
+    Never,
+}
 
 pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool)
     where T: Debug + VecLike
 {
-    test_with_samples_prefilled(samples, relative_radius, seeds, periodicity, None::<T>);
+    test_with_samples_prefilled(samples, relative_radius, seeds, periodicity, |_| |_| None::<T>, When::Always);
 }
 
-pub fn test_with_samples_prefilled<T, I>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool, prefiller: I)
-    where T: Debug + VecLike, I: IntoIterator<Item=T> + Clone
+pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool, mut prefiller: F, valid: When)
+    where T: 'r + Debug + VecLike, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
 {
+    use self::When::*;
     for i in 0..seeds {
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
@@ -25,13 +45,37 @@ pub fn test_with_samples_prefilled<T, I>(samples: u32, relative_radius: f64, see
             poisson = poisson.perioditic();
         }
         let mut poisson_iter = poisson.build_samples(samples, relative_radius).into_iter();
-        for s in prefiller.clone().into_iter() {
-            prefilled.push(s);
-            poisson_iter.insert(s);
+        let mut poisson = vec![];
+        let mut prefil = (prefiller)(poisson_iter.radius());
+        let mut last = None;
+        loop {
+            while let Some(p) = (prefil)(last) {
+                match valid {
+                    Always => assert!(poisson_iter.stays_legal(p), "All prefilled should be accepted by the algorithm."),
+                    Never => assert!(!poisson_iter.stays_legal(p), "All prefilled should be rejected by the algorithm. \
+                                    {} was allowed even though {:?} was last to be generated.", print_v(p), last.map(print_v)),
+                    _ => {},
+                }
+                prefilled.push(p);
+                poisson_iter.insert(p);
+            }
+            if let Some(pp) = poisson_iter.next() {
+                last = Some(pp);
+                poisson.push(pp);
+            } else {
+                break;
+            }
         }
         let radius = poisson_iter.radius();
         let periodicity = poisson_iter.periodicity();
-        test_poisson(poisson_iter.chain(prefilled.into_iter()), radius, periodicity);
+        let poisson = poisson
+            .into_iter()
+            .chain(if let Always = valid {
+                prefilled
+            } else {
+                vec![]
+            }.into_iter());
+        test_poisson(poisson, radius, periodicity);
     }
 }
 
@@ -67,10 +111,10 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, periodicity: bool)
         for n in 0..3i64.pow(dim as u32) {
             let mut t = T::zero();
             let mut div = n;
-            for i in 0..dim {
+            for i in t.iter_mut() {
                 let rem = div % 3;
                 div /= 3;
-                t[i] = (rem - 1) as f64;
+                replace(i, (rem - 1) as f64);
             }
             for v in &vecs {
                 vecs2.push(*v + t);
