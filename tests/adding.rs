@@ -7,14 +7,12 @@ use rand::{SeedableRng, XorShiftRng};
 extern crate sphere;
 
 extern crate nalgebra as na;
-use na::{Norm, Iterable, IterableMut};
+use na::Iterable;
 pub type Vect = na::Vec2<f64>;
 
 extern crate num;
-use num::Zero;
 
 use std::iter::repeat;
-use std::mem::replace;
 
 use helper::When::*;
 

@@ -6,7 +6,6 @@ use rand::distributions::IndependentSample;
 
 use sphere::sphere_volume;
 
-use std::mem::replace;
 use std::f64;
 
 use utils::{each_combination, calculate, Inplace, Grid};
@@ -58,10 +57,10 @@ impl<V> PoissonAlgo<V>
                 let index = self.range.ind_sample(&mut poisson.rand);
                 let cur = self.indices[index];
                 let parent = get_parent(cur, self.level);
-                if self.grid
+                if !self.grid
                        .get(parent)
                        .expect("Indexing base grid by valid parent failed.")
-                       .is_some() {
+                       .is_empty() {
                     self.indices.swap_remove(index);
                     if self.indices.is_empty() {
                         return None;
@@ -73,11 +72,9 @@ impl<V> PoissonAlgo<V>
                                                       cur,
                                                       self.level);
                     if is_disk_free(&self.grid, &poisson, cur, self.level, sample) && is_valid(&poisson, &self.outside, sample) {
-                        replace(self.grid
-                                    .get_mut(parent)
-                                    .expect("Indexing base grid by already indexed valid parent \
-                                             failed."),
-                                Some(sample));
+                        self.grid.get_mut(parent)
+                            .expect("Indexing base grid by already indexed valid parent failed.")
+                            .push(sample);
                         self.indices.swap_remove(index);
                         if !self.indices.is_empty() {
                             self.range = Range::new(0, self.indices.len());
@@ -119,21 +116,16 @@ impl<V> PoissonAlgo<V>
 
     pub fn insert(&mut self, value: V) {
         //TODO: Figure out when the value should be returned by iterator if at all.
-        // let mut i = value * self.grid.side as f64;
-        // for n in i.iter_mut() {
-        //     // println!("{} {}", n.floor(), self.grid.side);
-        //     calculate(n, |n| n.floor());
-        // }
-        // if let Some(g) = self.grid.get_mut(i) {
-        //     if g.is_some() {
-        //         self.outside.push(value);
-        //     } else {
-        //         replace(g, Some(value));
-        //     }
-        // } else {
-            //TODO: Currently manual addition incurs O(n^2) time
+        self.success += 1;
+        let mut cur = value.clone();
+        for c in cur.iter_mut() {
+            calculate(c, |c| (*c * self.grid.side as f64).floor());
+        }
+        if let Some(g) = self.grid.get_mut(cur) {
+            g.push(value);
+        } else {
             self.outside.push(value);
-        // }
+        }
     }
 
     pub fn stays_legal<R>(&self, poisson: &PoissonGen<R, V>, sample: V) -> bool
@@ -172,8 +164,8 @@ fn covered<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, outside: &[V], inde
         .all(|t| {
             each_combination(&[-2., -1., 0., 1., 2.])
                 .filter_map(|t| grid.get(parent + t))
-                .filter_map(|t| *t)
-                .any(|v| sqdist(t, v, poisson.periodicity) < sqradius) ||
+                .flat_map(|t| t)
+                .any(|v| sqdist(*v, t, poisson.periodicity) < sqradius) ||
             !is_valid(poisson, &outside, t)
         })
 
@@ -193,8 +185,8 @@ fn is_disk_free<R, V>(grid: &Grid<V>,
     // TODO: This does unnessary checks at corners...
     each_combination(&[-2., -1., 0., 1., 2.])
         .filter_map(|t| grid.get(parent + t))
-        .filter_map(|t| *t)
-        .all(|v| sqdist(v, c, poisson.periodicity) >= sqradius)
+        .flat_map(|t| t)
+        .all(|v| sqdist(*v, c, poisson.periodicity) >= sqradius)
 }
 
 fn is_valid<R, V>(poisson: &PoissonGen<R, V>, samples: &[V], sample: V) -> bool

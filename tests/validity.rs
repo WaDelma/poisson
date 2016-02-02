@@ -12,8 +12,6 @@ pub type Vect = na::Vec2<f64>;
 extern crate num;
 use num::Zero;
 
-use std::cell::RefCell;
-use std::rc::Rc;
 use std::mem::replace;
 
 use helper::When::*;
@@ -25,17 +23,16 @@ fn multiple_too_close_invalid() {
     let samples = 100;
     let relative_radius = 0.8;
     let prefiller = |radius| {
-        let last = Rc::new(RefCell::new(None::<Vect>));
-        let rand = Rc::new(RefCell::new(XorShiftRng::from_seed([9, 8, 7, 6])));
+        let mut last = None::<Vect>;
+        let mut rand = XorShiftRng::from_seed([9, 8, 7, 6]);
         move |v| {
-            let mut borrow = last.borrow_mut();
             if let Some(_) = v {
-                if *borrow == v {
+                if last == v {
                     None
                 } else {
-                    *borrow = v;
-                    let rng = &mut *rand.borrow_mut();
-                    v.map(|v| v + sphere_uniform_point(rng) * f64::rand(rng) * radius)
+                    last = v;
+                    let vec = sphere_uniform_point(&mut rand);
+                    v.map(|v| v + vec * f64::rand(&mut rand) * radius)
                 }
             } else {
                 None

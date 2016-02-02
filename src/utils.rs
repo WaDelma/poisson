@@ -9,7 +9,7 @@ use std::mem::replace;
 pub struct Grid<V>
     where V: VecLike
 {
-    pub data: Vec<Option<V>>,
+    pub data: Vec<Vec<V>>,
     pub side: usize,
     pub cell: f64,
     periodicity: bool,
@@ -24,16 +24,16 @@ impl<V> Grid<V> where V: VecLike
         Grid {
             cell: cell,
             side: side,
-            data: vec![None; side.pow(dim as u32)],
+            data: vec![vec![]; side.pow(dim as u32)],
             periodicity: periodicity,
         }
     }
 
-    pub fn get(&self, index: V) -> Option<&Option<V>> {
+    pub fn get(&self, index: V) -> Option<&Vec<V>> {
         encode(&index, self.side, self.periodicity).map(|t| &self.data[t])
     }
 
-    pub fn get_mut(&mut self, index: V) -> Option<&mut Option<V>> {
+    pub fn get_mut(&mut self, index: V) -> Option<&mut Vec<V>> {
         encode(&index, self.side, self.periodicity).map(move |t| &mut self.data[t])
     }
 
