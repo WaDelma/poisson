@@ -1,9 +1,11 @@
 use VecLike;
 
+use rand::{Rand, Rng};
+
 use modulo::Mod;
 
 use std::marker::PhantomData;
-use std::mem::replace;
+use std::f64;
 
 #[derive(Clone)]
 pub struct Grid<V>
@@ -58,7 +60,6 @@ pub fn encode<V>(v: &V, side: usize, periodicity: bool) -> Option<usize>
     Some(index / side)
 }
 
-#[cfg(test)]
 pub fn decode<V>(index: usize, side: usize) -> Option<V>
     where V: VecLike
 {
@@ -71,8 +72,7 @@ pub fn decode<V>(index: usize, side: usize) -> Option<V>
     let mut last = index;
     for n in result.iter_mut().rev() {
         let cur = last / side;
-        let value = (last - cur * side) as f64;
-        replace(n, value);
+        *n = (last - cur * side) as f64;
         last = cur;
     }
     Some(result)
@@ -103,6 +103,110 @@ fn decoding_outside_of_area_fails() {
     assert_eq!(None, decode::<::na::Vec2<f64>>(100, 10));
 }
 
+pub fn choose_random_sample<V, R>(rand: &mut R, grid: &Grid<V>, index: V, level: usize) -> V
+    where V: VecLike,
+          R: Rng
+{
+    let side = 2usize.pow(level as u32);
+    let spacing = grid.cell / side as f64;
+    let mut result = index * spacing;
+    for n in result.iter_mut() {
+        let place = f64::rand(rand);
+        *n += place * spacing;
+    }
+    result
+}
+
+#[test]
+fn random_point_is_between_right_values_top_lvl() {
+    use num::Zero;
+    use rand::{SeedableRng, XorShiftRng};
+    use ::na::Vec2;
+    let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
+    let radius = 0.2;
+    let grid = Grid::<Vec2<f64>>::new(radius, false);
+    for _ in 0..1000 {
+        let result = choose_random_sample(&mut rand, &grid, Vec2::<f64>::zero(), 0);
+        assert!(result.x >= 0.);
+        assert!(result.x < grid.cell);
+        assert!(result.y >= 0.);
+        assert!(result.y < grid.cell);
+    }
+}
+
+pub fn sample_to_index<V>(value: &V, side: usize) -> V
+    where V: VecLike
+{
+    let mut cur = value.clone();
+    for c in cur.iter_mut() {
+        *c = (*c * side as f64).floor();
+    }
+    cur
+}
+
+pub fn is_disk_free<R, V>(grid: &Grid<V>,
+                      radius: f64,
+                      periodicity: bool,
+                      index: V,
+                      level: usize,
+                      c: V)
+                      -> bool
+    where R: Rng,
+          V: VecLike
+{
+    let parent = get_parent(index, level);
+    let sqradius = (2. * radius).powi(2);
+    // TODO: This does unnessary checks at corners...
+    each_combination(&[-2., -1., 0., 1., 2.])
+        .filter_map(|t| grid.get(parent + t))
+        .flat_map(|t| t)
+        .all(|v| sqdist(*v, c, periodicity) >= sqradius)
+}
+
+pub fn sqdist<V>(v1: V, v2: V, periodicity: bool) -> f64
+    where V: VecLike
+{
+    let diff = v2 - v1;
+    if periodicity {
+        each_combination(&[-1., 0., 1.])
+            .map(|v| (diff + v).sqnorm())
+            .fold(f64::MAX, |a, b| a.min(b))
+    } else {
+        diff.sqnorm()
+    }
+}
+
+pub fn get_parent<V>(mut index: V, level: usize) -> V
+    where V: VecLike
+{
+    let split = 2usize.pow(level as u32);
+    for n in index.iter_mut() {
+        *n = (*n / split as f64).floor();
+    }
+    index
+}
+
+#[test]
+fn getting_parent_works() {
+    let divides = 4;
+    let cells_per_cell = 2usize.pow(divides as u32);
+    let testee = ::na::Vec2::new(1., 2.);
+    assert_eq!(testee,
+               get_parent((testee * cells_per_cell as f64) + ::na::Vec2::new(0., 15.),
+                          divides));
+}
+
+pub fn is_valid<R, V>(radius: f64, periodicity: bool, samples: &[V], sample: V) -> bool
+    where R: Rng,
+          V: VecLike
+{
+    let sqradius = (2. * radius).powi(2);
+    samples
+        .iter()
+        .all(|t| sqdist(*t, sample, periodicity) >= sqradius)
+}
+
+
 pub struct CombiIter<'a, V>
     where V: VecLike
 {
@@ -126,7 +230,7 @@ impl<'a, V> Iterator for CombiIter<'a, V> where V: VecLike
             for n in result.iter_mut() {
                 let rem = div % len;
                 div /= len;
-                replace(n, self.choices[rem as usize]);
+                *n = self.choices[rem as usize];
             }
             Some(result)
         }
@@ -177,11 +281,4 @@ fn mapping_inplace_works() {
     result.flat_map_inplace(&func);
     let mut expected = vec.into_iter().flat_map(func).collect::<Vec<_>>();
     assert_eq!(expected.sort(), result.sort());
-}
-
-pub fn calculate<T, F>(value: &mut T, fun: F)
-    where F: FnOnce(&mut T) -> T
-{
-    let v = (fun)(value);
-    ::std::mem::replace(value, v);
 }

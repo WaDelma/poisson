@@ -8,7 +8,7 @@ use sphere::sphere_volume;
 
 use std::f64;
 
-use utils::{each_combination, calculate, Inplace, Grid};
+use utils::*;
 
 #[derive(Clone)]
 pub struct PoissonAlgo<V>
@@ -71,7 +71,7 @@ impl<V> PoissonAlgo<V>
                                                       &self.grid,
                                                       cur,
                                                       self.level);
-                    if is_disk_free(&self.grid, &poisson, cur, self.level, sample) && is_valid(&poisson, &self.outside, sample) {
+                    if is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, cur, self.level, sample) && is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample) {
                         self.grid.get_mut(parent)
                             .expect("Indexing base grid by already indexed valid parent failed.")
                             .push(sample);
@@ -114,28 +114,23 @@ impl<V> PoissonAlgo<V>
         (lower, Some(upper))
     }
 
-    pub fn insert(&mut self, value: V) {
+    pub fn insert(&mut self, sample: V) {
         //TODO: Figure out when the value should be returned by iterator if at all.
         self.success += 1;
-        let mut cur = value.clone();
-        for c in cur.iter_mut() {
-            calculate(c, |c| (*c * self.grid.side as f64).floor());
-        }
-        if let Some(g) = self.grid.get_mut(cur) {
-            g.push(value);
+        let index = sample_to_index(&sample, self.grid.side);
+        if let Some(g) = self.grid.get_mut(index) {
+            g.push(sample);
         } else {
-            self.outside.push(value);
+            self.outside.push(sample);
         }
     }
 
     pub fn stays_legal<R>(&self, poisson: &PoissonGen<R, V>, sample: V) -> bool
         where R: Rng
     {
-        let mut cur = sample.clone();
-        for c in cur.iter_mut() {
-            calculate(c, |c| (*c * self.grid.side as f64).floor());
-        }
-        is_disk_free(&self.grid, &poisson, cur, 0, sample) && is_valid(&poisson, &self.outside, sample)
+        let index = sample_to_index(&sample, self.grid.side);
+        is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, index, 0, sample) &&
+        is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample)
     }
 }
 
@@ -166,99 +161,7 @@ fn covered<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, outside: &[V], inde
                 .filter_map(|t| grid.get(parent + t))
                 .flat_map(|t| t)
                 .any(|v| sqdist(*v, t, poisson.periodicity) < sqradius) ||
-            !is_valid(poisson, &outside, t)
+            !is_valid::<R, V>(poisson.radius, poisson.periodicity, &outside, t)
         })
 
-}
-
-fn is_disk_free<R, V>(grid: &Grid<V>,
-                      poisson: &PoissonGen<R, V>,
-                      index: V,
-                      level: usize,
-                      c: V)
-                      -> bool
-    where R: Rng,
-          V: VecLike
-{
-    let parent = get_parent(index, level);
-    let sqradius = (2. * poisson.radius).powi(2);
-    // TODO: This does unnessary checks at corners...
-    each_combination(&[-2., -1., 0., 1., 2.])
-        .filter_map(|t| grid.get(parent + t))
-        .flat_map(|t| t)
-        .all(|v| sqdist(*v, c, poisson.periodicity) >= sqradius)
-}
-
-fn is_valid<R, V>(poisson: &PoissonGen<R, V>, samples: &[V], sample: V) -> bool
-    where R: Rng,
-          V: VecLike
-{
-    let sqradius = (2. * poisson.radius).powi(2);
-    samples
-        .iter()
-        .all(|t| sqdist(*t, sample, poisson.periodicity) >= sqradius)
-}
-
-fn sqdist<V>(v1: V, v2: V, periodicity: bool) -> f64
-    where V: VecLike
-{
-    let diff = v2 - v1;
-    if periodicity {
-        each_combination(&[-1., 0., 1.])
-            .map(|v| (diff + v).sqnorm())
-            .fold(f64::MAX, |a, b| a.min(b))
-    } else {
-        diff.sqnorm()
-    }
-}
-
-fn choose_random_sample<V, R>(rand: &mut R, grid: &Grid<V>, index: V, level: usize) -> V
-    where V: VecLike,
-          R: Rng
-{
-    let side = 2usize.pow(level as u32);
-    let spacing = grid.cell / side as f64;
-    let mut result = index * spacing;
-    for n in result.iter_mut() {
-        let place = f64::rand(rand);
-        calculate(n, |n| *n + place * spacing);
-    }
-    result
-}
-
-#[test]
-fn random_point_is_between_right_values_top_lvl() {
-    use num::Zero;
-    use rand::{SeedableRng, XorShiftRng};
-    use ::na::Vec2;
-    let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
-    let radius = 0.2;
-    let grid = Grid::<Vec2<f64>>::new(radius, false);
-    for _ in 0..1000 {
-        let result = choose_random_sample(&mut rand, &grid, Vec2::<f64>::zero(), 0);
-        assert!(result.x >= 0.);
-        assert!(result.x < grid.cell);
-        assert!(result.y >= 0.);
-        assert!(result.y < grid.cell);
-    }
-}
-
-fn get_parent<V>(mut index: V, level: usize) -> V
-    where V: VecLike
-{
-    let split = 2usize.pow(level as u32);
-    for n in index.iter_mut() {
-        calculate(n, |n| (*n / split as f64).floor());
-    }
-    index
-}
-
-#[test]
-fn getting_parent_works() {
-    let divides = 4;
-    let cells_per_cell = 2usize.pow(divides as u32);
-    let testee = ::na::Vec2::new(1., 2.);
-    assert_eq!(testee,
-               get_parent((testee * cells_per_cell as f64) + ::na::Vec2::new(0., 15.),
-                          divides));
 }

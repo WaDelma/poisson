@@ -6,7 +6,6 @@
 //! with any other disk of other points
 //! * Samples fill the space uniformly
 //!
-
 extern crate modulo;
 
 extern crate sphere;
@@ -26,11 +25,12 @@ use std::cmp::PartialEq;
 use std::ops::{Sub, Mul, Add, Div};
 use std::marker::PhantomData;
 
-use algo::PoissonAlgo;
+pub use algo::*;
 
 mod algo;
 mod math;
 mod utils;
+mod debug;
 
 /// Describes what traits the algorithm needs to be able to work.
 pub trait VecLike:

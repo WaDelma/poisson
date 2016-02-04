@@ -12,8 +12,6 @@ pub type Vect = na::Vec2<f64>;
 extern crate num;
 use num::Zero;
 
-use std::mem::replace;
-
 use helper::When::*;
 
 mod helper;
@@ -45,7 +43,7 @@ fn multiple_too_close_invalid() {
 pub fn sphere_uniform_point<R: Rng>(rng: &mut R) -> Vect {
     let mut result = Vect::zero();
     for c in result.iter_mut() {
-        replace(c, rand::distributions::normal::StandardNormal::rand(rng).0);
+        *c = rand::distributions::normal::StandardNormal::rand(rng).0;
     }
     result.normalize()
 }

@@ -1,25 +1,29 @@
 use VecLike;
 use na::Dim;
-use std::f64::consts::PI;
+
+const TAU: f64
+    = 6.283185307179586476925286766559005768394338798750211641949;
+const HALF_TAU: f64
+    = 3.141592653589793238462643383279502884197169399375105820974;
 
 lazy_static! {
     static ref MAX_PACKING_DENSITIES: [f64; 7] = [
-        1. / 6. * PI * 3f64.sqrt(),
-        1. / 6. * PI * 2f64.sqrt(),
-        1. / 16. * PI.powi(2),
-        1. / 30. * PI.powi(2) * 2f64.sqrt(),
-        1. / 144. * PI.powi(3) * 3f64.sqrt(),
-        1. / 105. * PI.powi(3),
-        1. / 384. * PI.powi(4),
+        1. / 6. * HALF_TAU * 3f64.sqrt(),
+        1. / 6. * HALF_TAU * 2f64.sqrt(),
+        1. / 16. * HALF_TAU.powi(2),
+        1. / 30. * HALF_TAU.powi(2) * 2f64.sqrt(),
+        1. / 144. * HALF_TAU.powi(3) * 3f64.sqrt(),
+        1. / 105. * HALF_TAU.powi(3),
+        1. / 384. * HALF_TAU.powi(4),
         ];
     // gamma((index + 2) / 2 + 1)
     static ref GAMMA: [f64; 7] = [
         1.,
-        (3. * PI.sqrt()) / 4.,
+        (3. * HALF_TAU.sqrt()) / 4.,
         2.,
-        (15. * PI.sqrt()) / 8.,
+        (15. * HALF_TAU.sqrt()) / 8.,
         6.,
-        (105. * PI.sqrt()) / 16.,
+        (105. * HALF_TAU.sqrt()) / 16.,
         24.,
         ];
     static ref MAX_RADII: [f64; 7] = [
@@ -46,7 +50,7 @@ lazy_static! {
 
 fn precalc(dim: usize) -> f64 {
     let index = dim - 2;
-    (MAX_PACKING_DENSITIES[index] * GAMMA[index]) / PI.powf(dim as f64 / 2.)
+    (MAX_PACKING_DENSITIES[index] * GAMMA[index]) / HALF_TAU.powf(dim as f64 / 2.)
 }
 
 fn newton(samples: u32, dim: usize) -> u32 {

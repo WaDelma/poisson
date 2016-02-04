@@ -4,7 +4,6 @@ use poisson::{PoissonIter, PoissonDisk, VecLike};
 use rand::{SeedableRng, XorShiftRng};
 
 use std::fmt::Debug;
-use std::mem::replace;
 
 use na::Norm;
 
@@ -51,7 +50,8 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
         loop {
             while let Some(p) = (prefil)(last) {
                 match valid {
-                    Always => assert!(poisson_iter.stays_legal(p), "All prefilled should be accepted by the algorithm."),
+                    Always => assert!(poisson_iter.stays_legal(p), "All prefilled should be accepted by the algorithm. \
+                                    {} was rejected.", print_v(p)),
                     Never => assert!(!poisson_iter.stays_legal(p), "All prefilled should be rejected by the algorithm. \
                                     {} was allowed even though {:?} was last to be generated.", print_v(p), last.map(print_v)),
                     _ => {},
@@ -114,7 +114,7 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, periodicity: bool)
             for i in t.iter_mut() {
                 let rem = div % 3;
                 div /= 3;
-                replace(i, (rem - 1) as f64);
+                *i = (rem - 1) as f64;
             }
             for v in &vecs {
                 vecs2.push(*v + t);
