@@ -30,7 +30,6 @@ pub use algo::*;
 mod algo;
 mod math;
 mod utils;
-mod debug;
 
 /// Describes what traits the algorithm needs to be able to work.
 pub trait VecLike:
