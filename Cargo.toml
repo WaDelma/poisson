@@ -16,6 +16,7 @@ num = "0.1.25"
 lazy_static = "0.1.11"
 modulo = "0.1.0"
 sphere = "0.1.0"
+image = "*"
 
 [profile.test]
 opt-level = 3

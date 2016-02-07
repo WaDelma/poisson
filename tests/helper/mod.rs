@@ -37,6 +37,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
 {
     use self::When::*;
     for i in 0..seeds {
+        unsafe{::poisson::SEED = i as usize}
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = PoissonDisk::new(rand);
@@ -76,6 +77,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
                 vec![]
             }.into_iter());
         test_poisson(poisson, radius, periodicity);
+        // break;
     }
 }
 

@@ -6,6 +6,7 @@
 //! with any other disk of other points
 //! * Samples fill the space uniformly
 //!
+extern crate image;
 extern crate modulo;
 
 extern crate sphere;
@@ -31,6 +32,8 @@ mod algo;
 mod math;
 mod utils;
 mod debug;
+
+pub static mut SEED: usize = 0;
 
 /// Describes what traits the algorithm needs to be able to work.
 pub trait VecLike:

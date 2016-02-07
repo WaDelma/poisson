@@ -8,6 +8,8 @@ use sphere::sphere_volume;
 
 use utils::*;
 
+static mut COUNTER: usize = 0;
+
 #[derive(Clone)]
 pub struct PoissonAlgo<V>
     where V: VecLike
@@ -40,7 +42,7 @@ impl<V> PoissonAlgo<V>
             let cur = self.active_samples[index];
             for _ in 0..30 {
                 let sample = cur + random_point_annulus::<V, R>(&mut poisson.rand, 2. * poisson.radius, 4. * poisson.radius);
-                if sample.iter().all(|&v| 0. <= v && v <= 1.) {
+                if sample.iter().all(|&c| 0. <= c && c <= 1.) {
                     let index = sample_to_index(&sample, self.grid.side);
                     if self.insert_if_valid(poisson, index, sample) {
                         return Some(sample);
@@ -48,6 +50,9 @@ impl<V> PoissonAlgo<V>
                 }
             }
             self.active_samples.swap_remove(index);
+            if unsafe{::SEED} == 2 {
+                ::debug::visualise_3d(unsafe{COUNTER += 1; COUNTER}, 0, &self.grid, &vec![], &vec![], 0.5 * poisson.radius);
+            }
         }
         if self.success == 0 {
             loop {
@@ -63,12 +68,12 @@ impl<V> PoissonAlgo<V>
         None
     }
 
-    fn insert_if_valid<R>(&mut self, poisson: &mut PoissonGen<R, V>, i: V, sample: V) -> bool
+    fn insert_if_valid<R>(&mut self, poisson: &mut PoissonGen<R, V>, index: V, sample: V) -> bool
         where R: Rng
     {
-        if is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, i, 0, sample) && is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample) {
+        if is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, index, 0, sample) && is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample) {
             self.active_samples.push(sample);
-            self.grid.get_mut(i)
+            self.grid.get_mut(index)
                 .expect("Because the sample is [0, 1] indexing it should work.")
                 .push(sample);
             self.success += 1;
