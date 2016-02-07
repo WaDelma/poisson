@@ -31,7 +31,6 @@ pub use algo::*;
 mod algo;
 mod math;
 mod utils;
-mod debug;
 
 pub static mut SEED: usize = 0;
 
