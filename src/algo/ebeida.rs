@@ -1,6 +1,8 @@
-use ::{PoissonGen, VecLike};
+use ::{PoissonDisk, VecLike};
+use utils::*;
+use algo::PoissonAlgorithm;
 
-use rand::{Rand, Rng};
+use rand::Rng;
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
 
@@ -8,11 +10,9 @@ use sphere::sphere_volume;
 
 use std::f64;
 
-use utils::*;
-
 #[derive(Clone)]
-pub struct PoissonAlgo<V>
-    where V: VecLike
+pub struct EbeidaAlgorithm<V>
+    where V: VecLike,
 {
     grid: Grid<V>,
     indices: Vec<V>,
@@ -21,23 +21,32 @@ pub struct PoissonAlgo<V>
     throws: usize,
     success: usize,
     outside: Vec<V>,
+    a: f64,
 }
 
-impl<V> PoissonAlgo<V>
-    where V: VecLike
+impl<V> PoissonAlgorithm<V> for EbeidaAlgorithm<V>
+    where V: VecLike,
 {
-    pub fn new<R>(poisson: &mut PoissonGen<R, V>) -> PoissonAlgo<V>
-        where R: Rng
-    {
+    fn new(poisson: &PoissonDisk<V>) -> Self {
         let dim = V::dim(None);
-        let grid = Grid::new(poisson.radius, poisson.periodicity);
+        let grid = Grid::new(poisson.radius, poisson.poisson_type);
         let capacity = grid.cells() * dim;
         let mut indices = Vec::with_capacity(capacity);
         let choices = (0..grid.side).map(|i| i as f64).collect::<Vec<_>>();
         indices.extend(each_combination::<V>(&choices));
         let range = Range::new(0, indices.len());
-        let throws = (poisson.a * indices.len() as f64).ceil() as usize;
-        PoissonAlgo {
+        let a = match dim {
+            2 => 0.3,
+            3 => 0.3,
+            4 => 0.6,
+            5 => 10.,
+            6 => 700.,
+            // TODO: Figure out what are optimal values beyond 6 dimensions
+            _ => 700. + 100. * dim as f64,
+        };
+        let throws = (a * indices.len() as f64).ceil() as usize;
+        EbeidaAlgorithm {
+            a: a,
             grid: grid,
             indices: indices,
             level: 0,
@@ -48,13 +57,13 @@ impl<V> PoissonAlgo<V>
         }
     }
 
-    pub fn next<R>(&mut self, poisson: &mut PoissonGen<R, V>) -> Option<V>
+    fn next<R>(&mut self, poisson: &mut PoissonDisk<V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
         while !self.indices.is_empty() && self.level < f64::MANTISSA_DIGITS as usize {
             while self.throws > 0 {
                 self.throws -= 1;
-                let index = self.range.ind_sample(&mut poisson.rand);
+                let index = self.range.ind_sample(rng);
                 let cur = self.indices[index];
                 let parent = get_parent(cur, self.level);
                 if !self.grid
@@ -67,11 +76,11 @@ impl<V> PoissonAlgo<V>
                     }
                     self.range = Range::new(0, self.indices.len());
                 } else {
-                    let sample = choose_random_sample(&mut poisson.rand,
+                    let sample = choose_random_sample(rng,
                                                       &self.grid,
                                                       cur,
                                                       self.level);
-                    if is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, cur, self.level, sample) && is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample) {
+                    if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, cur, self.level, sample) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample) {
                         self.grid.get_mut(parent)
                             .expect("Indexing base grid by already indexed valid parent failed.")
                             .push(sample);
@@ -89,15 +98,13 @@ impl<V> PoissonAlgo<V>
                 return None;
             }
             self.range = Range::new(0, self.indices.len());
-            self.throws = (poisson.a * self.indices.len() as f64).ceil() as usize;
+            self.throws = (self.a * self.indices.len() as f64).ceil() as usize;
             self.level += 1;
         }
         None
     }
 
-    pub fn size_hint<R>(&self, poisson: &PoissonGen<R, V>) -> (usize, Option<usize>)
-        where R: Rng
-    {
+    fn size_hint(&self, poisson: &PoissonDisk<V>) -> (usize, Option<usize>) {
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dim(None);
@@ -114,7 +121,7 @@ impl<V> PoissonAlgo<V>
         (lower, Some(upper))
     }
 
-    pub fn insert(&mut self, sample: V) {
+    fn insert(&mut self, sample: V) {
         //TODO: Figure out when the value should be returned by iterator if at all.
         self.success += 1;
         let index = sample_to_index(&sample, self.grid.side);
@@ -125,18 +132,15 @@ impl<V> PoissonAlgo<V>
         }
     }
 
-    pub fn stays_legal<R>(&self, poisson: &PoissonGen<R, V>, sample: V) -> bool
-        where R: Rng
-    {
+    fn stays_legal(&self, poisson: &PoissonDisk<V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side);
-        is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, index, 0, sample) &&
-        is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample)
+        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample) &&
+        is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
 
-fn subdivide<R, V>(indices: &mut Vec<V>, grid: &Grid<V>, outside: &[V], poisson: &PoissonGen<R, V>, level: usize)
-    where R: Rng,
-          V: VecLike
+fn subdivide<V>(indices: &mut Vec<V>, grid: &Grid<V>, outside: &[V], poisson: &PoissonDisk<V>, level: usize)
+    where V: VecLike,
 {
     let choices = &[0., 1.];
     indices.flat_map_inplace(|i| {
@@ -146,9 +150,8 @@ fn subdivide<R, V>(indices: &mut Vec<V>, grid: &Grid<V>, outside: &[V], poisson:
     });
 }
 
-fn covered<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, outside: &[V], index: V, level: usize) -> bool
-    where R: Rng,
-          V: VecLike
+fn covered<V>(grid: &Grid<V>, poisson: &PoissonDisk<V>, outside: &[V], index: V, level: usize) -> bool
+    where V: VecLike,
 {
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / side as f64;
@@ -160,8 +163,8 @@ fn covered<R, V>(grid: &Grid<V>, poisson: &PoissonGen<R, V>, outside: &[V], inde
             each_combination(&[-2., -1., 0., 1., 2.])
                 .filter_map(|t| grid.get(parent + t))
                 .flat_map(|t| t)
-                .any(|v| sqdist(*v, t, poisson.periodicity) < sqradius) ||
-            !is_valid::<R, V>(poisson.radius, poisson.periodicity, &outside, t)
+                .any(|v| sqdist(*v, t, poisson.poisson_type) < sqradius) ||
+            !is_valid(poisson.radius, poisson.poisson_type, &outside, t)
         })
 
 }

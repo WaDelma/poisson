@@ -1,5 +1,5 @@
 #![allow(unused)]
-use poisson::{PoissonIter, PoissonDisk, VecLike};
+use poisson::{PoissonType, PoissonIter, PoissonDisk, VecLike};
 
 use rand::{SeedableRng, XorShiftRng};
 
@@ -40,11 +40,8 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
         unsafe{::poisson::SEED = i as usize}
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson = PoissonDisk::new(rand);
-        if periodicity {
-            poisson = poisson.perioditic();
-        }
-        let mut poisson_iter = poisson.build_samples(samples, relative_radius).into_iter();
+        let mut poisson = PoissonDisk::with_samples(samples, relative_radius, if periodicity {PoissonType::Perioditic} else {PoissonType::Normal});//new(rand);
+        let mut poisson_iter = poisson.build(rand).into_iter();
         let mut poisson = vec![];
         let mut prefil = (prefiller)(poisson_iter.radius());
         let mut last = None;
@@ -68,7 +65,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
             }
         }
         let radius = poisson_iter.radius();
-        let periodicity = poisson_iter.periodicity();
+        let poisson_type = poisson_iter.poisson_type();
         let poisson = poisson
             .into_iter()
             .chain(if let Always = valid {
@@ -76,14 +73,15 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
             } else {
                 vec![]
             }.into_iter());
-        test_poisson(poisson, radius, periodicity);
+        test_poisson(poisson, radius, poisson_type);
         // break;
     }
 }
 
-pub fn test_poisson<I, T>(poisson: I, radius: f64, periodicity: bool)
+pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
     where I: Iterator<Item=T>, T: Debug + VecLike
 {
+    use poisson::PoissonType::*;
     let dim = T::dim(None);
     let mut vecs = vec![];
     let mut hints = vec![];
@@ -108,23 +106,24 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, periodicity: bool)
     // let packing_density = vecs.len() as f64 * ::sphere::sphere_volume(poisson.radius(), dim as u64);
     // println!("{}", packing_density);
     // panic!();
-    let vecs = if periodicity {
-        let mut vecs2 = vec![];
-        for n in 0..3i64.pow(dim as u32) {
-            let mut t = T::zero();
-            let mut div = n;
-            for i in t.iter_mut() {
-                let rem = div % 3;
-                div /= 3;
-                *i = (rem - 1) as f64;
+    let vecs = match poisson_type {
+        Perioditic => {
+            let mut vecs2 = vec![];
+            for n in 0..3i64.pow(dim as u32) {
+                let mut t = T::zero();
+                let mut div = n;
+                for i in t.iter_mut() {
+                    let rem = div % 3;
+                    div /= 3;
+                    *i = (rem - 1) as f64;
+                }
+                for v in &vecs {
+                    vecs2.push(*v + t);
+                }
             }
-            for v in &vecs {
-                vecs2.push(*v + t);
-            }
-        }
-        vecs2
-    } else {
-        vecs
+            vecs2
+        },
+        Normal => vecs,
     };
     assert_legal_poisson(&vecs, radius);
 }

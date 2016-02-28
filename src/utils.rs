@@ -1,4 +1,4 @@
-use VecLike;
+use ::{PoissonType, VecLike};
 
 use rand::{Rand, Rng};
 
@@ -14,12 +14,12 @@ pub struct Grid<V>
     pub data: Vec<Vec<V>>,
     pub side: usize,
     pub cell: f64,
-    periodicity: bool,
+    poisson_type: PoissonType,
 }
 
 impl<V> Grid<V> where V: VecLike
 {
-    pub fn new(radius: f64, periodicity: bool) -> Grid<V> {
+    pub fn new(radius: f64, poisson_type: PoissonType) -> Grid<V> {
         let dim = V::dim(None);
         let cell = (2. * radius) / (dim as f64).sqrt();
         let side = (1. / cell) as usize;
@@ -27,16 +27,16 @@ impl<V> Grid<V> where V: VecLike
             cell: cell,
             side: side,
             data: vec![vec![]; side.pow(dim as u32)],
-            periodicity: periodicity,
+            poisson_type: poisson_type,
         }
     }
 
     pub fn get(&self, index: V) -> Option<&Vec<V>> {
-        encode(&index, self.side, self.periodicity).map(|t| &self.data[t])
+        encode(&index, self.side, self.poisson_type).map(|t| &self.data[t])
     }
 
     pub fn get_mut(&mut self, index: V) -> Option<&mut Vec<V>> {
-        encode(&index, self.side, self.periodicity).map(move |t| &mut self.data[t])
+        encode(&index, self.side, self.poisson_type).map(move |t| &mut self.data[t])
     }
 
     pub fn cells(&self) -> usize {
@@ -44,16 +44,18 @@ impl<V> Grid<V> where V: VecLike
     }
 }
 
-pub fn encode<V>(v: &V, side: usize, periodicity: bool) -> Option<usize>
+pub fn encode<V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usize>
     where V: VecLike
 {
+    use PoissonType::*;
     let mut index = 0;
     for &n in v.iter() {
         let mut cur = n as usize;
-        if periodicity {
-            cur = (n as isize).modulo(side as isize) as usize;
-        } else if n < 0. || n >= side as f64 {
-            return None;
+        match poisson_type {
+            Perioditic => cur = (n as isize).modulo(side as isize) as usize,
+            Normal => if n < 0. || n >= side as f64 {
+                        return None;
+                    },
         }
         index = (index + cur) * side;
     }
@@ -144,15 +146,14 @@ pub fn sample_to_index<V>(value: &V, side: usize) -> V
     cur
 }
 
-pub fn is_disk_free<R, V>(grid: &Grid<V>,
+pub fn is_disk_free<V>(grid: &Grid<V>,
                       radius: f64,
-                      periodicity: bool,
+                      poisson_type: PoissonType,
                       index: V,
                       level: usize,
                       c: V)
                       -> bool
-    where R: Rng,
-          V: VecLike
+    where V: VecLike
 {
     let parent = get_parent(index, level);
     let sqradius = (2. * radius).powi(2);
@@ -160,19 +161,20 @@ pub fn is_disk_free<R, V>(grid: &Grid<V>,
     each_combination(&[-2., -1., 0., 1., 2.])
         .filter_map(|t| grid.get(parent + t))
         .flat_map(|t| t)
-        .all(|v| sqdist(*v, c, periodicity) >= sqradius)
+        .all(|v| sqdist(*v, c, poisson_type) >= sqradius)
 }
 
-pub fn sqdist<V>(v1: V, v2: V, periodicity: bool) -> f64
+pub fn sqdist<V>(v1: V, v2: V, poisson_type: PoissonType) -> f64
     where V: VecLike
 {
+    use PoissonType::*;
     let diff = v2 - v1;
-    if periodicity {
-        each_combination(&[-1., 0., 1.])
-            .map(|v| (diff + v).sqnorm())
-            .fold(f64::MAX, |a, b| a.min(b))
-    } else {
-        diff.sqnorm()
+    match poisson_type {
+        Perioditic =>
+            each_combination(&[-1., 0., 1.])
+                .map(|v| (diff + v).sqnorm())
+                .fold(f64::MAX, |a, b| a.min(b)),
+        Normal => diff.sqnorm(),
     }
 }
 
@@ -196,14 +198,13 @@ fn getting_parent_works() {
                           divides));
 }
 
-pub fn is_valid<R, V>(radius: f64, periodicity: bool, samples: &[V], sample: V) -> bool
-    where R: Rng,
-          V: VecLike
+pub fn is_valid<V>(radius: f64, poisson_type: PoissonType, samples: &[V], sample: V) -> bool
+    where V: VecLike
 {
     let sqradius = (2. * radius).powi(2);
     samples
         .iter()
-        .all(|t| sqdist(*t, sample, periodicity) >= sqradius)
+        .all(|t| sqdist(*t, sample, poisson_type) >= sqradius)
 }
 
 

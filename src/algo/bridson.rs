@@ -1,4 +1,6 @@
-use ::{PoissonGen, VecLike};
+use ::{PoissonDisk, VecLike};
+use utils::*;
+use algo::PoissonAlgorithm;
 
 use rand::{Rand, Rng};
 use rand::distributions::range::Range;
@@ -6,12 +8,10 @@ use rand::distributions::IndependentSample;
 
 use sphere::sphere_volume;
 
-use utils::*;
-
 static mut COUNTER: usize = 0;
 
 #[derive(Clone)]
-pub struct PoissonAlgo<V>
+pub struct BridsonAlgorithm<V>
     where V: VecLike
 {
     grid: Grid<V>,
@@ -20,28 +20,26 @@ pub struct PoissonAlgo<V>
     success: usize,
 }
 
-impl<V> PoissonAlgo<V>
-    where V: VecLike
+impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
+    where V: VecLike,
 {
-    pub fn new<R>(poisson: &mut PoissonGen<R, V>) -> PoissonAlgo<V>
-        where R: Rng
-    {
-        PoissonAlgo {
-            grid: Grid::new(poisson.radius, poisson.periodicity),
+    fn new(poisson: &PoissonDisk<V>) -> Self {
+        BridsonAlgorithm {
+            grid: Grid::new(poisson.radius, poisson.poisson_type),
             active_samples: vec![],
             outside: vec![],
             success: 0,
         }
     }
 
-    pub fn next<R>(&mut self, poisson: &mut PoissonGen<R, V>) -> Option<V>
+    fn next<R>(&mut self, poisson: &mut PoissonDisk<V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
         while !self.active_samples.is_empty() {
-            let index = Range::new(0, self.active_samples.len()).ind_sample(&mut poisson.rand);
+            let index = Range::new(0, self.active_samples.len()).ind_sample(rng);
             let cur = self.active_samples[index];
             for _ in 0..30 {
-                let sample = cur + random_point_annulus::<V, R>(&mut poisson.rand, 2. * poisson.radius, 4. * poisson.radius);
+                let sample = cur + random_point_annulus(rng, 2. * poisson.radius, 4. * poisson.radius);
                 if sample.iter().all(|&c| 0. <= c && c <= 1.) {
                     let index = sample_to_index(&sample, self.grid.side);
                     if self.insert_if_valid(poisson, index, sample) {
@@ -51,15 +49,15 @@ impl<V> PoissonAlgo<V>
             }
             self.active_samples.swap_remove(index);
             if unsafe{::SEED} == 2 {
-                ::debug::visualise_3d(unsafe{COUNTER += 1; COUNTER}, 0, &self.grid, &vec![], &vec![], 0.5 * poisson.radius);
+                // ::debug::visualise_3d(unsafe{COUNTER += 1; COUNTER}, 0, &self.grid, &vec![], &vec![], 0.5 * poisson.radius);
             }
         }
         if self.success == 0 {
             loop {
-                let cell = Range::new(0, self.grid.cells()).ind_sample(&mut poisson.rand);
+                let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
                 let index = decode(cell, self.grid.side)
                     .expect("Because we are decoding random index within grid this should work.");
-                let sample = choose_random_sample(&mut poisson.rand, &self.grid, index, 0);
+                let sample = choose_random_sample(rng, &self.grid, index, 0);
                 if self.insert_if_valid(poisson, index, sample) {
                     return Some(sample);
                 }
@@ -68,24 +66,7 @@ impl<V> PoissonAlgo<V>
         None
     }
 
-    fn insert_if_valid<R>(&mut self, poisson: &mut PoissonGen<R, V>, index: V, sample: V) -> bool
-        where R: Rng
-    {
-        if is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, index, 0, sample) && is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample) {
-            self.active_samples.push(sample);
-            self.grid.get_mut(index)
-                .expect("Because the sample is [0, 1] indexing it should work.")
-                .push(sample);
-            self.success += 1;
-            true
-        } else {
-            false
-        }
-    }
-
-    pub fn size_hint<R>(&self, poisson: &PoissonGen<R, V>) -> (usize, Option<usize>)
-        where R: Rng
-    {
+    fn size_hint(&self, poisson: &PoissonDisk<V>) -> (usize, Option<usize>) {
         // Calculating upper bound should work because there is this many places left in the grid and no more can fit into it.
         let upper = self.grid.cells() - self.success;
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
@@ -102,7 +83,7 @@ impl<V> PoissonAlgo<V>
         (lower, Some(upper))
     }
 
-    pub fn insert(&mut self, sample: V) {
+    fn insert(&mut self, sample: V) {
         self.success += 1;
         let index = sample_to_index(&sample, self.grid.side);
         if let Some(g) = self.grid.get_mut(index) {
@@ -112,16 +93,30 @@ impl<V> PoissonAlgo<V>
         }
     }
 
-    pub fn stays_legal<R>(&self, poisson: &PoissonGen<R, V>, sample: V) -> bool
-        where R: Rng
-    {
+    fn stays_legal(&self, poisson: &PoissonDisk<V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side);
-        is_disk_free::<R, V>(&self.grid, poisson.radius, poisson.periodicity, index, 0, sample) &&
-        is_valid::<R, V>(poisson.radius, poisson.periodicity, &self.outside, sample)
+        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample) &&
+        is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
 
-
+impl<V> BridsonAlgorithm<V>
+    where V: VecLike
+{
+    fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<V>, index: V, sample: V) -> bool
+    {
+        if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample) {
+            self.active_samples.push(sample);
+            self.grid.get_mut(index)
+                .expect("Because the sample is [0, 1] indexing it should work.")
+                .push(sample);
+            self.success += 1;
+            true
+        } else {
+            false
+        }
+    }
+}
 
 fn random_point_annulus<V, R>(rand: &mut R, min: f64, max: f64) -> V
     where V: VecLike,

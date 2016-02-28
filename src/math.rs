@@ -1,4 +1,5 @@
-use VecLike;
+use ::{VecLike, PoissonType};
+
 use na::Dim;
 
 const TAU: f64
@@ -68,14 +69,14 @@ fn newton(samples: u32, dim: usize) -> u32 {
     n as u32
 }
 
-pub fn calc_radius<T>(samples: u32, relative_radius: f64, periodicity: bool) -> f64
+pub fn calc_radius<T>(samples: u32, relative_radius: f64, poisson_type: PoissonType) -> f64
     where T: VecLike
 {
+    use PoissonType::*;
     let dim = T::dim(None);
-    let samples = if periodicity {
-        samples
-    } else {
-        newton(samples, dim)
+    let samples = match poisson_type {
+        Perioditic => samples,
+        Normal => newton(samples, dim),
     };
     (MAX_RADII[dim - 2] / samples as f64).powf(1. / dim as f64) * relative_radius
 }
