@@ -83,21 +83,21 @@ pub fn decode<V>(index: usize, side: usize) -> Option<V>
 #[test]
 fn encoding_decoding_works() {
     let n = ::na::Vec2::new(10., 7.);
-    assert_eq!(n, decode(encode(&n, 15, false).unwrap(), 15).unwrap());
+    assert_eq!(n, decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_decoding_at_edge_works() {
     let n = ::na::Vec2::new(14., 14.);
-    assert_eq!(n, decode(encode(&n, 15, false).unwrap(), 15).unwrap());
+    assert_eq!(n, decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_outside_of_area_fails() {
     let n = ::na::Vec2::new(9., 7.);
-    assert_eq!(None, encode(&n, 9, false));
+    assert_eq!(None, encode(&n, 9, PoissonType::Normal));
     let n = ::na::Vec2::new(7., 9.);
-    assert_eq!(None, encode(&n, 9, false));
+    assert_eq!(None, encode(&n, 9, PoissonType::Normal));
 }
 
 #[test]
@@ -126,7 +126,7 @@ fn random_point_is_between_right_values_top_lvl() {
     use ::na::Vec2;
     let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let radius = 0.2;
-    let grid = Grid::<Vec2<f64>>::new(radius, false);
+    let grid = Grid::<Vec2<f64>>::new(radius, PoissonType::Normal);
     for _ in 0..1000 {
         let result = choose_random_sample(&mut rand, &grid, Vec2::<f64>::zero(), 0);
         assert!(result.x >= 0.);
@@ -159,9 +159,9 @@ pub fn is_disk_free<V>(grid: &Grid<V>,
     let sqradius = (2. * radius).powi(2);
     // TODO: This does unnessary checks at corners...
     each_combination(&[-2., -1., 0., 1., 2.])
-        .filter_map(|t| grid.get(parent + t))
+        .filter_map(|t| grid.get(parent.clone() + t))
         .flat_map(|t| t)
-        .all(|v| sqdist(*v, c, poisson_type) >= sqradius)
+        .all(|v| sqdist(v.clone(), c.clone(), poisson_type) >= sqradius)
 }
 
 pub fn sqdist<V>(v1: V, v2: V, poisson_type: PoissonType) -> f64
@@ -172,7 +172,7 @@ pub fn sqdist<V>(v1: V, v2: V, poisson_type: PoissonType) -> f64
     match poisson_type {
         Perioditic =>
             each_combination(&[-1., 0., 1.])
-                .map(|v| (diff + v).sqnorm())
+                .map(|v| (diff.clone() + v).sqnorm())
                 .fold(f64::MAX, |a, b| a.min(b)),
         Normal => diff.sqnorm(),
     }
@@ -204,7 +204,7 @@ pub fn is_valid<V>(radius: f64, poisson_type: PoissonType, samples: &[V], sample
     let sqradius = (2. * radius).powi(2);
     samples
         .iter()
-        .all(|t| sqdist(*t, sample, poisson_type) >= sqradius)
+        .all(|t| sqdist(t.clone(), sample.clone(), poisson_type) >= sqradius)
 }
 
 

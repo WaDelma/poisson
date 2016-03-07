@@ -1,5 +1,5 @@
 extern crate poisson;
-use poisson::{PoissonDisk};
+use poisson::{PoissonType, PoissonDisk};
 
 extern crate rand;
 use rand::{SeedableRng, XorShiftRng};
@@ -24,14 +24,14 @@ fn adding_valid_start_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
     let prefiller = |_| {
-        let mut pre = PoissonDisk::new(rand.clone())
-            .build_samples::<Vect>(samples, relative_radius)
+        let mut pre = PoissonDisk::<Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
+            .build(rand.clone())
             .into_iter()
             .take(25)
             .map(Some);
         move |_| pre.next().and_then(|s| s)
     };
-    helper::test_with_samples_prefilled(samples, relative_radius, 100, false, prefiller, Always);
+    helper::test_with_samples_prefilled(samples, relative_radius, 100, PoissonType::Normal, prefiller, Always);
 }
 
 #[test]
@@ -40,8 +40,8 @@ fn adding_valid_middle_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([1, 1, 2, 3]);
     let prefiller = |_| {
-        let prefiller = PoissonDisk::new(rand.clone())
-            .build_samples::<Vect>(samples, relative_radius);
+        let prefiller = PoissonDisk::<Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
+            .build(rand.clone());
         let mut pre = repeat(None)
             .take(25)
             .chain(prefiller
@@ -51,7 +51,7 @@ fn adding_valid_middle_works() {
         move |_| pre.next().and_then(|s| s)
     };
 
-    helper::test_with_samples_prefilled(samples, relative_radius, 100, false, prefiller, Sometimes);
+    helper::test_with_samples_prefilled(samples, relative_radius, 100, PoissonType::Normal, prefiller, Sometimes);
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn adding_to_edges_start_works() {
         let mut pre = prefiller.iter().cloned().map(Some as fn(_) -> _);
         move |_| pre.next().and_then(|s| s)
     };
-    helper::test_with_samples_prefilled(samples, relative_radius, 100, false, prefiller, Always);
+    helper::test_with_samples_prefilled(samples, relative_radius, 100, PoissonType::Normal, prefiller, Always);
 }
 
 #[test]
@@ -85,5 +85,5 @@ fn adding_to_outside_of_edges_start_works() {
         let mut pre = prefiller.iter().cloned().map(Some as fn(_) -> _);
         move |_| pre.next().and_then(|s| s)
     };
-    helper::test_with_samples_prefilled(samples, relative_radius, 100, false, prefiller, Always);
+    helper::test_with_samples_prefilled(samples, relative_radius, 100, PoissonType::Normal, prefiller, Always);
 }

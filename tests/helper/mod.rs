@@ -26,21 +26,21 @@ pub enum When {
     Never,
 }
 
-pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool)
-    where T: Debug + VecLike
+pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, ptype: PoissonType)
+    where T: Debug + VecLike + Copy
 {
-    test_with_samples_prefilled(samples, relative_radius, seeds, periodicity, |_| |_| None::<T>, When::Always);
+    test_with_samples_prefilled(samples, relative_radius, seeds, ptype, |_| |_| None::<T>, When::Always);
 }
 
-pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f64, seeds: u32, periodicity: bool, mut prefiller: F, valid: When)
-    where T: 'r + Debug + VecLike, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
+pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f64, seeds: u32, ptype: PoissonType, mut prefiller: F, valid: When)
+    where T: 'r + Debug + VecLike + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
 {
     use self::When::*;
     for i in 0..seeds {
         unsafe{::poisson::SEED = i as usize}
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson = PoissonDisk::with_samples(samples, relative_radius, if periodicity {PoissonType::Perioditic} else {PoissonType::Normal});//new(rand);
+        let mut poisson = PoissonDisk::with_samples(samples, relative_radius, ptype);//new(rand);
         let mut poisson_iter = poisson.build(rand).into_iter();
         let mut poisson = vec![];
         let mut prefil = (prefiller)(poisson_iter.radius());
@@ -55,7 +55,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
                     _ => {},
                 }
                 prefilled.push(p);
-                poisson_iter.insert(p);
+                poisson_iter.restrict(p);
             }
             if let Some(pp) = poisson_iter.next() {
                 last = Some(pp);
@@ -79,7 +79,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
 }
 
 pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
-    where I: Iterator<Item=T>, T: Debug + VecLike
+    where I: Iterator<Item=T>, T: Debug + VecLike + Copy
 {
     use poisson::PoissonType::*;
     let dim = T::dim(None);
@@ -129,7 +129,7 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
 }
 
 pub fn assert_legal_poisson<T>(vecs: &Vec<T>, radius: f64)
-    where T: Debug + VecLike
+    where T: Debug + VecLike + Copy
 {
     for &v1 in vecs {
         for &v2 in vecs {

@@ -1,7 +1,9 @@
 extern crate poisson;
+use poisson::PoissonType;
 
 extern crate rand;
 use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+use rand::distributions::normal::StandardNormal;
 
 extern crate sphere;
 
@@ -37,13 +39,13 @@ fn multiple_too_close_invalid() {
             }
         }
     };
-    helper::test_with_samples_prefilled(samples, relative_radius, 1000, false, prefiller, Never);
+    helper::test_with_samples_prefilled(samples, relative_radius, 50, PoissonType::Normal, prefiller, Never);
 }
 
 pub fn sphere_uniform_point<R: Rng>(rng: &mut R) -> Vect {
     let mut result = Vect::zero();
     for c in result.iter_mut() {
-        *c = rand::distributions::normal::StandardNormal::rand(rng).0;
+        *c = StandardNormal::rand(rng).0;
     }
     result.normalize()
 }

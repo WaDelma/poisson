@@ -5,11 +5,13 @@ use algo::PoissonAlgorithm;
 use rand::{Rand, Rng};
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
-
+use rand::distributions::normal::StandardNormal;
 use sphere::sphere_volume;
 
 static mut COUNTER: usize = 0;
 
+/// Generates approximate Poisson-disk distribution with O(N) time and space complexity relative to the number of samples generated.
+/// Based on Bridson, Robert. "Fast Poisson disk sampling in arbitrary dimensions." SIGGRAPH Sketches. 2007.
 #[derive(Clone)]
 pub struct BridsonAlgorithm<V>
     where V: VecLike
@@ -37,12 +39,12 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
     {
         while !self.active_samples.is_empty() {
             let index = Range::new(0, self.active_samples.len()).ind_sample(rng);
-            let cur = self.active_samples[index];
+            let cur = self.active_samples[index].clone();
             for _ in 0..30 {
-                let sample = cur + random_point_annulus(rng, 2. * poisson.radius, 4. * poisson.radius);
+                let sample = cur.clone() + random_point_annulus(rng, 2. * poisson.radius, 4. * poisson.radius);
                 if sample.iter().all(|&c| 0. <= c && c <= 1.) {
                     let index = sample_to_index(&sample, self.grid.side);
-                    if self.insert_if_valid(poisson, index, sample) {
+                    if self.insert_if_valid(poisson, index, sample.clone()) {
                         return Some(sample);
                     }
                 }
@@ -55,10 +57,10 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
         if self.success == 0 {
             loop {
                 let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
-                let index = decode(cell, self.grid.side)
+                let index: V = decode(cell, self.grid.side)
                     .expect("Because we are decoding random index within grid this should work.");
-                let sample = choose_random_sample(rng, &self.grid, index, 0);
-                if self.insert_if_valid(poisson, index, sample) {
+                let sample = choose_random_sample(rng, &self.grid, index.clone(), 0);
+                if self.insert_if_valid(poisson, index, sample.clone()) {
                     return Some(sample);
                 }
             }
@@ -83,7 +85,7 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
         (lower, Some(upper))
     }
 
-    fn insert(&mut self, sample: V) {
+    fn restrict(&mut self, sample: V) {
         self.success += 1;
         let index = sample_to_index(&sample, self.grid.side);
         if let Some(g) = self.grid.get_mut(index) {
@@ -95,7 +97,7 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
 
     fn stays_legal(&self, poisson: &PoissonDisk<V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side);
-        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample) &&
+        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
@@ -105,8 +107,8 @@ impl<V> BridsonAlgorithm<V>
 {
     fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<V>, index: V, sample: V) -> bool
     {
-        if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample) {
-            self.active_samples.push(sample);
+        if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index.clone(), 0, sample.clone()) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample.clone()) {
+            self.active_samples.push(sample.clone());
             self.grid.get_mut(index)
                 .expect("Because the sample is [0, 1] indexing it should work.")
                 .push(sample);
@@ -125,7 +127,7 @@ fn random_point_annulus<V, R>(rand: &mut R, min: f64, max: f64) -> V
     loop {
         let mut result = V::zero();
         for c in result.iter_mut() {
-            *c = ::rand::distributions::normal::StandardNormal::rand(rand).0;
+            *c = StandardNormal::rand(rand).0;
         }
         let result = result.normalize() * f64::rand(rand) * max;
         if result.norm() >= min {

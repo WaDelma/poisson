@@ -10,6 +10,8 @@ use sphere::sphere_volume;
 
 use std::f64;
 
+/// Generates Poisson-disk distribution with O(N) time and space complexity relative to the number of samples generated.
+/// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
 #[derive(Clone)]
 pub struct EbeidaAlgorithm<V>
     where V: VecLike,
@@ -64,10 +66,10 @@ impl<V> PoissonAlgorithm<V> for EbeidaAlgorithm<V>
             while self.throws > 0 {
                 self.throws -= 1;
                 let index = self.range.ind_sample(rng);
-                let cur = self.indices[index];
-                let parent = get_parent(cur, self.level);
+                let cur = self.indices[index].clone();
+                let parent = get_parent(cur.clone(), self.level);
                 if !self.grid
-                       .get(parent)
+                       .get(parent.clone())
                        .expect("Indexing base grid by valid parent failed.")
                        .is_empty() {
                     self.indices.swap_remove(index);
@@ -78,12 +80,12 @@ impl<V> PoissonAlgorithm<V> for EbeidaAlgorithm<V>
                 } else {
                     let sample = choose_random_sample(rng,
                                                       &self.grid,
-                                                      cur,
+                                                      cur.clone(),
                                                       self.level);
-                    if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, cur, self.level, sample) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample) {
+                    if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, cur.clone(), self.level, sample.clone()) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample.clone()) {
                         self.grid.get_mut(parent)
                             .expect("Indexing base grid by already indexed valid parent failed.")
-                            .push(sample);
+                            .push(sample.clone());
                         self.indices.swap_remove(index);
                         if !self.indices.is_empty() {
                             self.range = Range::new(0, self.indices.len());
@@ -121,8 +123,7 @@ impl<V> PoissonAlgorithm<V> for EbeidaAlgorithm<V>
         (lower, Some(upper))
     }
 
-    fn insert(&mut self, sample: V) {
-        //TODO: Figure out when the value should be returned by iterator if at all.
+    fn restrict(&mut self, sample: V) {
         self.success += 1;
         let index = sample_to_index(&sample, self.grid.side);
         if let Some(g) = self.grid.get_mut(index) {
@@ -134,7 +135,7 @@ impl<V> PoissonAlgorithm<V> for EbeidaAlgorithm<V>
 
     fn stays_legal(&self, poisson: &PoissonDisk<V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side);
-        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample) &&
+        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
@@ -145,8 +146,8 @@ fn subdivide<V>(indices: &mut Vec<V>, grid: &Grid<V>, outside: &[V], poisson: &P
     let choices = &[0., 1.];
     indices.flat_map_inplace(|i| {
         each_combination::<V>(choices)
-            .map(move |n| n + i * 2.)
-            .filter(|c| !covered(grid, poisson, outside, *c, level + 1))
+            .map(move |n| n + i.clone() * 2.)
+            .filter(|c| !covered(grid, poisson, outside, c.clone(), level + 1))
     });
 }
 
@@ -156,14 +157,14 @@ fn covered<V>(grid: &Grid<V>, poisson: &PoissonDisk<V>, outside: &[V], index: V,
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / side as f64;
     let sqradius = (2. * poisson.radius).powi(2);
-    let parent = get_parent(index, level);
+    let parent = get_parent(index.clone(), level);
     each_combination(&[0., 1.])
-        .map(|t| (index + t) * spacing)
+        .map(|t| (index.clone() + t) * spacing)
         .all(|t| {
             each_combination(&[-2., -1., 0., 1., 2.])
-                .filter_map(|t| grid.get(parent + t))
+                .filter_map(|t| grid.get(parent.clone() + t))
                 .flat_map(|t| t)
-                .any(|v| sqdist(*v, t, poisson.poisson_type) < sqradius) ||
+                .any(|v| sqdist(v.clone(), t.clone(), poisson.poisson_type) < sqradius) ||
             !is_valid(poisson.radius, poisson.poisson_type, &outside, t)
         })
 
