@@ -1,5 +1,5 @@
 extern crate poisson;
-use poisson::{PoissonType, PoissonDisk};
+use poisson::{Ebeida, PoissonType, PoissonDisk};
 
 extern crate rand;
 use rand::{SeedableRng, XorShiftRng};
@@ -24,8 +24,8 @@ fn adding_valid_start_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
     let prefiller = |_| {
-        let mut pre = PoissonDisk::<Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
-            .build(rand.clone())
+        let mut pre = PoissonDisk::<_, Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
+            .build(rand.clone(), Ebeida)
             .into_iter()
             .take(25)
             .map(Some);
@@ -40,8 +40,8 @@ fn adding_valid_middle_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([1, 1, 2, 3]);
     let prefiller = |_| {
-        let prefiller = PoissonDisk::<Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
-            .build(rand.clone());
+        let prefiller = PoissonDisk::<_, Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
+            .build(rand.clone(), Ebeida);
         let mut pre = repeat(None)
             .take(25)
             .chain(prefiller

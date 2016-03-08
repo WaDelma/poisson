@@ -10,13 +10,13 @@ pub type Vec2 = naVec2<f64>;
 #[test]
 #[should_panic]
 fn test_normal_too_small_radius() {
-    let _ = PoissonDisk::<Vec2>::with_radius(0.0, PoissonType::Normal);
+    let _ = PoissonDisk::<_, Vec2>::with_radius(0.0, PoissonType::Normal);
 }
 
 #[test]
 #[should_panic]
 fn test_normal_too_large_radius() {
-    let _ = PoissonDisk::<Vec2>::with_radius(2f64.sqrt() / 2.0 + 0.0001, PoissonType::Normal);
+    let _ = PoissonDisk::<_, Vec2>::with_radius(2f64.sqrt() / 2.0 + 0.0001, PoissonType::Normal);
 }
 
 // #[test]

@@ -1,6 +1,8 @@
-use ::{PoissonDisk, VecLike};
+use ::{PoissonDisk, VecLike, FloatLike};
 use utils::*;
-use algo::PoissonAlgorithm;
+use algo::{AlgorithmCreator, Algorithm};
+
+use num::{NumCast, Float};
 
 use rand::{Rand, Rng};
 use rand::distributions::range::Range;
@@ -12,20 +14,15 @@ static mut COUNTER: usize = 0;
 
 /// Generates approximate Poisson-disk distribution with O(N) time and space complexity relative to the number of samples generated.
 /// Based on Bridson, Robert. "Fast Poisson disk sampling in arbitrary dimensions." SIGGRAPH Sketches. 2007.
-#[derive(Clone)]
-pub struct BridsonAlgorithm<V>
-    where V: VecLike
-{
-    grid: Grid<V>,
-    active_samples: Vec<V>,
-    outside: Vec<V>,
-    success: usize,
-}
+pub struct Bridson;
 
-impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
-    where V: VecLike,
+impl<F, V> AlgorithmCreator<F, V> for Bridson
+    where F: FloatLike,
+          V: VecLike<F>
 {
-    fn new(poisson: &PoissonDisk<V>) -> Self {
+    type Algo = BridsonAlgorithm<F, V>;
+
+    fn create(poisson: &PoissonDisk<F, V>) -> Self::Algo {
         BridsonAlgorithm {
             grid: Grid::new(poisson.radius, poisson.poisson_type),
             active_samples: vec![],
@@ -33,16 +30,32 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
             success: 0,
         }
     }
+}
 
-    fn next<R>(&mut self, poisson: &mut PoissonDisk<V>, rng: &mut R) -> Option<V>
+pub struct BridsonAlgorithm<F, V>
+    where F: FloatLike,
+          V: VecLike<F>
+{
+    grid: Grid<F, V>,
+    active_samples: Vec<V>,
+    outside: Vec<V>,
+    success: usize,
+}
+
+impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
+    where F: FloatLike,
+          V: VecLike<F>,
+{
+
+    fn next<R>(&mut self, poisson: &mut PoissonDisk<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
         while !self.active_samples.is_empty() {
             let index = Range::new(0, self.active_samples.len()).ind_sample(rng);
             let cur = self.active_samples[index].clone();
             for _ in 0..30 {
-                let sample = cur.clone() + random_point_annulus(rng, 2. * poisson.radius, 4. * poisson.radius);
-                if sample.iter().all(|&c| 0. <= c && c <= 1.) {
+                let sample = cur.clone() + random_point_annulus(rng, F::f(2) * poisson.radius, F::f(4) * poisson.radius);
+                if sample.iter().all(|&c| F::f(0) <= c && c <= F::f(1)) {
                     let index = sample_to_index(&sample, self.grid.side);
                     if self.insert_if_valid(poisson, index, sample.clone()) {
                         return Some(sample);
@@ -68,20 +81,20 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
         None
     }
 
-    fn size_hint(&self, poisson: &PoissonDisk<V>) -> (usize, Option<usize>) {
+    fn size_hint(&self, poisson: &PoissonDisk<F, V>) -> (usize, Option<usize>) {
         // Calculating upper bound should work because there is this many places left in the grid and no more can fit into it.
         let upper = self.grid.cells() - self.success;
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dim(None);
-        let spacing = self.grid.cell as f64;
-        let grid_volume = upper as f64 * spacing.powi(dim as i32);
-        let sphere_volume = sphere_volume(2. * poisson.radius, dim as u64);
-        let mut lower = (grid_volume / sphere_volume).floor() as usize;
+        let spacing = self.grid.cell;
+        let grid_volume = F::f(upper) * spacing.powi(dim as i32);
+        let sphere_volume = sphere_volume(F::f(2) * poisson.radius, dim as u64);
+        let lower: F = grid_volume / sphere_volume;
+        let mut lower = lower.floor().to_usize().unwrap();
         if lower > 0 {
             lower -= 1;
         }
-
         (lower, Some(upper))
     }
 
@@ -95,17 +108,18 @@ impl<V> PoissonAlgorithm<V> for BridsonAlgorithm<V>
         }
     }
 
-    fn stays_legal(&self, poisson: &PoissonDisk<V>, sample: V) -> bool {
+    fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side);
         is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
 
-impl<V> BridsonAlgorithm<V>
-    where V: VecLike
+impl<F, V> BridsonAlgorithm<F, V>
+    where F: FloatLike,
+          V: VecLike<F>
 {
-    fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<V>, index: V, sample: V) -> bool
+    fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<F, V>, index: V, sample: V) -> bool
     {
         if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index.clone(), 0, sample.clone()) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample.clone()) {
             self.active_samples.push(sample.clone());
@@ -120,16 +134,17 @@ impl<V> BridsonAlgorithm<V>
     }
 }
 
-fn random_point_annulus<V, R>(rand: &mut R, min: f64, max: f64) -> V
-    where V: VecLike,
+fn random_point_annulus<F, V, R>(rand: &mut R, min: F, max: F) -> V
+    where F: FloatLike,
+          V: VecLike<F>,
           R: Rng
 {
     loop {
         let mut result = V::zero();
         for c in result.iter_mut() {
-            *c = StandardNormal::rand(rand).0;
+            *c = NumCast::from(StandardNormal::rand(rand).0).unwrap();
         }
-        let result = result.normalize() * f64::rand(rand) * max;
+        let result = result.normalize() * F::rand(rand) * max;
         if result.norm() >= min {
             return result;
         }

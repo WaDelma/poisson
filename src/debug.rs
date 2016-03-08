@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 
 use modulo::Mod;
 
-pub fn print_v<V: VecLike>(v: V) -> String {
+pub fn print_v<V: VecLike<f64>>(v: V) -> String {
     let mut result = "(".to_owned();
     for i in v.iter() {
         result.push_str(&format!("{}, ", i));
@@ -22,7 +22,7 @@ pub fn print_v<V: VecLike>(v: V) -> String {
     result
 }
 
-pub fn visualise_3d<V: VecLike>(n: usize, level: usize, g: &Grid<V>, outside: &Vec<V>, indices: &Vec<V>, radius: f64) {
+pub fn visualise_3d<V: VecLike<f64>>(n: usize, level: usize, g: &Grid<f64, V>, outside: &Vec<V>, indices: &Vec<V>, radius: f64) {
     let radius = 2. * radius;
     let periodicity = false;
     let samples: Vec<V> = g.data.iter().flat_map(|v| v).cloned().collect();
@@ -115,7 +115,7 @@ pub fn visualise_3d<V: VecLike>(n: usize, level: usize, g: &Grid<V>, outside: &V
 //     }
 // }
 
-pub fn visualise<V: VecLike>(n: usize, level: usize, g: &Grid<V>, outside: &Vec<V>, indices: &Vec<V>, r: f64) {
+pub fn visualise<V: VecLike<f64>>(n: usize, level: usize, g: &Grid<f64, V>, outside: &Vec<V>, indices: &Vec<V>, r: f64) {
     let r = 2. * r;
     let size = 2u32.pow(8);//512;
     let samples: Vec<V> = g.data.iter().flat_map(|v| v).cloned().collect();
@@ -186,7 +186,7 @@ pub fn visualise<V: VecLike>(n: usize, level: usize, g: &Grid<V>, outside: &Vec<
     let _ = image::ImageRgb8(imgbuf).save(fout, image::PNG);
 }
 
-fn create<V: VecLike>(x: f64, y: f64) -> V {
+fn create<V: VecLike<f64>>(x: f64, y: f64) -> V {
     let mut i = V::zero();
     {
         let mut iter = i.iter_mut();
@@ -196,12 +196,12 @@ fn create<V: VecLike>(x: f64, y: f64) -> V {
     i
 }
 
-fn extract<V: VecLike>(v: &V) -> (f64, f64) {
+fn extract<V: VecLike<f64>>(v: &V) -> (f64, f64) {
     let mut iter = v.iter();
     (*iter.next().unwrap(), *iter.next().unwrap())
 }
 
-fn extract_3d<V: VecLike>(v: &V) -> (f64, f64, f64) {
+fn extract_3d<V: VecLike<f64>>(v: &V) -> (f64, f64, f64) {
     let mut iter = v.iter();
     (*iter.next().unwrap(), *iter.next().unwrap(), *iter.next().unwrap())
 }

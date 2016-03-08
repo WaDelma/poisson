@@ -1,4 +1,8 @@
-use ::{VecLike, PoissonType};
+//! Helper functions that poisson uses.
+
+use ::{PoissonType, VecLike, FloatLike};
+
+use num::{NumCast, Float};
 
 use na::Dim;
 
@@ -54,7 +58,7 @@ fn precalc(dim: usize) -> f64 {
     (MAX_PACKING_DENSITIES[index] * GAMMA[index]) / HALF_TAU.powf(dim as f64 / 2.)
 }
 
-fn newton(samples: u32, dim: usize) -> u32 {
+fn newton(samples: usize, dim: usize) -> usize {
     let mut n = 1f64;
     let alpha = ALPHA[dim - 2];
     let beta = BETA[dim - 2];
@@ -66,17 +70,27 @@ fn newton(samples: u32, dim: usize) -> u32 {
             return 1;
         }
     }
-    n as u32
+    n as usize
 }
 
-pub fn calc_radius<T>(samples: u32, relative_radius: f64, poisson_type: PoissonType) -> f64
-    where T: VecLike
+/// Calculates radius from approximate samples and relative radius.
+/// The amount of samples should be larger than 0.
+/// The relative radius should be [0, 1].
+/// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
+pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: PoissonType) -> F
+    where F: FloatLike,
+          V: VecLike<F>
 {
     use PoissonType::*;
-    let dim = T::dim(None);
+    assert!(PoissonType::Perioditic == poisson_type || V::dim(None) < 5);
+    assert!(samples > 0);
+    assert!(relative >= F::f(0));
+    assert!(relative <= F::f(1));
+    let dim = V::dim(None);
     let samples = match poisson_type {
         Perioditic => samples,
         Normal => newton(samples, dim),
     };
-    (MAX_RADII[dim - 2] / samples as f64).powf(1. / dim as f64) * relative_radius
+    let max_radii: F = NumCast::from(MAX_RADII[dim - 2]).unwrap();
+    (max_radii / F::f(samples)).powf(F::f(1) / F::f(dim)) * relative
 }

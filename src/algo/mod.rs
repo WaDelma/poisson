@@ -1,30 +1,41 @@
-use ::{PoissonDisk, VecLike};
+//! Module that contains traits that describe poisson-disk distribution generating algorithms.
+
+use ::{PoissonDisk, VecLike, FloatLike};
 
 use rand::Rng;
 
-pub use self::bridson::BridsonAlgorithm;
-pub use self::ebeida::EbeidaAlgorithm;
+pub use self::bridson::Bridson;
+pub use self::ebeida::Ebeida;
 
 mod bridson;
 mod ebeida;
 
-/// Trait that describes what poisson-disk distribution generating algorithm needs.
-pub trait PoissonAlgorithm<V>
-    where V: VecLike,
+/// Trait for building algorithms.
+pub trait AlgorithmCreator<F, V>
+    where F: FloatLike,
+          V: VecLike<F>,
 {
-    /// Creates new algorithm based on PoissonDisk.
-    fn new(poisson: &PoissonDisk<V>) -> Self;
+    type Algo: Algorithm<F, V>;
 
+    /// Creates new algorithm.
+    fn create(&PoissonDisk<F, V>) -> Self::Algo;
+}
+
+/// Trait that describes what poisson-disk distribution generating algorithm needs.
+pub trait Algorithm<F, V>
+    where F: FloatLike,
+          V: VecLike<F>,
+{
     /// Advances algorithm based on PoissonDisk and Rng.
-    fn next<R>(&mut self, poisson: &mut PoissonDisk<V>, rng: &mut R) -> Option<V>
+    fn next<R>(&mut self, &mut PoissonDisk<F, V>, &mut R) -> Option<V>
         where R: Rng;
 
     /// Return lower and upper bound of samples remaining for algorithm to generate based on PoissonDisk.
-    fn size_hint(&self, poisson: &PoissonDisk<V>) -> (usize, Option<usize>);
+    fn size_hint(&self, &PoissonDisk<F, V>) -> (usize, Option<usize>);
 
     /// Restricts the algorithm with arbitary sample.
-    fn restrict(&mut self, sample: V);
+    fn restrict(&mut self, V);
 
     /// Checks if sample is valid based on PoissonDisk.
-    fn stays_legal(&self, poisson: &PoissonDisk<V>, sample: V) -> bool;
+    fn stays_legal(&self, &PoissonDisk<F, V>, V) -> bool;
 }

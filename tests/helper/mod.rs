@@ -1,16 +1,19 @@
 #![allow(unused)]
-use poisson::{PoissonType, PoissonIter, PoissonDisk, VecLike};
+use poisson::{Ebeida, PoissonType, PoissonIter, PoissonDisk, VecLike, FloatLike};
 
 use rand::{SeedableRng, XorShiftRng};
 
 use std::fmt::Debug;
 
+extern crate num;
+use self::num::Float;
+
 use na::Norm;
 
-pub fn print_v<V: VecLike>(v: V) -> String {
+pub fn print_v<F: FloatLike + Debug, V: VecLike<F>>(v: V) -> String {
     let mut result = "(".to_owned();
     for i in v.iter() {
-        result.push_str(&format!("{}, ", i));
+        result.push_str(&format!("{:?}, ", i));
     }
     if V::dim(None) != 0 {
         result.pop();
@@ -26,14 +29,14 @@ pub enum When {
     Never,
 }
 
-pub fn test_with_samples<T>(samples: u32, relative_radius: f64, seeds: u32, ptype: PoissonType)
-    where T: Debug + VecLike + Copy
+pub fn test_with_samples<T>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType)
+    where T: Debug + VecLike<f64> + Copy
 {
     test_with_samples_prefilled(samples, relative_radius, seeds, ptype, |_| |_| None::<T>, When::Always);
 }
 
-pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f64, seeds: u32, ptype: PoissonType, mut prefiller: F, valid: When)
-    where T: 'r + Debug + VecLike + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
+pub fn test_with_samples_prefilled<'r, T, F, I>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType, mut prefiller: F, valid: When)
+    where T: 'r + Debug + VecLike<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
 {
     use self::When::*;
     for i in 0..seeds {
@@ -41,7 +44,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson = PoissonDisk::with_samples(samples, relative_radius, ptype);//new(rand);
-        let mut poisson_iter = poisson.build(rand).into_iter();
+        let mut poisson_iter = poisson.build(rand, Ebeida).into_iter();
         let mut poisson = vec![];
         let mut prefil = (prefiller)(poisson_iter.radius());
         let mut last = None;
@@ -79,7 +82,7 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: u32, relative_radius: f
 }
 
 pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
-    where I: Iterator<Item=T>, T: Debug + VecLike + Copy
+    where I: Iterator<Item=T>, T: Debug + VecLike<f64> + Copy
 {
     use poisson::PoissonType::*;
     let dim = T::dim(None);
@@ -129,7 +132,7 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
 }
 
 pub fn assert_legal_poisson<T>(vecs: &Vec<T>, radius: f64)
-    where T: Debug + VecLike + Copy
+    where T: Debug + VecLike<f64> + Copy
 {
     for &v1 in vecs {
         for &v2 in vecs {
