@@ -10,7 +10,7 @@
 //!
 //! ```
 //! extern crate poisson;
-//! use poisson::{PoissonDisk, PoissonType, EbeidaAlgorithm};
+//! use poisson::{PoissonDisk, PoissonType, Ebeida};
 //!
 //! extern crate rand;
 //!
@@ -20,7 +20,7 @@
 //! fn main() {
 //!     let poisson =
 //!         PoissonDisk::<_, Vec2>::with_radius(0.1, PoissonType::Normal)
-//!             .build(rand::weak_rng(), EbeidaAlgorithm::new);
+//!             .build(rand::weak_rng(), Ebeida);
 //!     let samples = poisson.generate();
 //!     println!("{:?}", samples);
 //! }
@@ -46,15 +46,13 @@ use std::cmp::PartialEq;
 use std::ops::{Sub, Mul, Add, Div};
 use std::marker::PhantomData;
 
-pub use algo::{Ebeida, Bridson};
 use algo::{AlgorithmCreator, Algorithm};
+use utils::math::calc_radius;
+
+pub use algo::{Ebeida, Bridson};
 
 pub mod algo;
-pub mod math;
-pub mod utils;
-mod debug;
-
-pub static mut SEED: usize = 0;
+mod utils;
 
 /// Describes what traits floats have.
 pub trait FloatLike:
@@ -71,7 +69,7 @@ impl<T> FloatLike for T
     where T: BaseFloat + Float + Rand
 {}
 
-/// Describes what traits the algorithms need to be able to work.
+/// Describes what traits vectors have.
 pub trait VecLike<F>:
     IterableMut<F> +
     Iterable<F> +
@@ -161,7 +159,7 @@ impl<V, F> PoissonDisk<F, V>
     /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
     pub fn with_samples(samples: usize, relative: F, poisson_type: PoissonType) -> Self {
         PoissonDisk {
-            radius: math::calc_radius::<F, V>(samples, relative, poisson_type),
+            radius: calc_radius::<F, V>(samples, relative, poisson_type),
             poisson_type: poisson_type,
             _marker: PhantomData,
         }
@@ -246,11 +244,10 @@ impl<F, V, R, A> IntoIterator for PoissonGen<F, V, R, A>
     type Item = V;
 
     fn into_iter(self) -> Self::IntoIter {
-        let algo = A::create(&self.poisson);
         PoissonIter {
             rng: self.rng,
+            algo: A::create(&self.poisson),
             poisson: self.poisson,
-            algo: algo,
         }
     }
 }

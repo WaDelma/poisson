@@ -1,3 +1,5 @@
+//! Helper functions that poisson uses.
+
 use ::{PoissonType, VecLike, FloatLike};
 
 use num::{NumCast, Float};
@@ -8,14 +10,16 @@ use modulo::Mod;
 
 use std::marker::PhantomData;
 
+pub mod math;
+
 #[derive(Clone)]
 pub struct Grid<F, V>
     where F: FloatLike,
           V: VecLike<F>
 {
-    pub data: Vec<Vec<V>>,
-    pub side: usize,
-    pub cell: F,
+    data: Vec<Vec<V>>,
+    side: usize,
+    cell: F,
     poisson_type: PoissonType,
     _marker: PhantomData<F>,
 }
@@ -47,6 +51,14 @@ impl<F, V> Grid<F, V>
 
     pub fn cells(&self) -> usize {
         self.data.len()
+    }
+
+    pub fn side(&self) -> usize {
+        self.side
+    }
+
+    pub fn cell(&self) -> F {
+        self.cell
     }
 }
 
@@ -260,6 +272,7 @@ impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
     }
 }
 
+/// Iterates through all combinations of vectors with allowed values as scalars.
 pub fn each_combination<'a, F, FF, V>(choices: &[FF]) -> CombiIter<F, FF, V>
     where F: FloatLike + 'a,
           FF: NumCast,
@@ -272,7 +285,9 @@ pub fn each_combination<'a, F, FF, V>(choices: &[FF]) -> CombiIter<F, FF, V>
     }
 }
 
+/// Trait that allows flat mapping inplace.
 pub trait Inplace<T> {
+    /// Does flat map inplace without maintaining order of elements.
     fn flat_map_inplace<F, I>(&mut self, f: F)
         where I: IntoIterator<Item = T>,
               F: FnMut(T) -> I;

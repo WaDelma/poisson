@@ -14,6 +14,7 @@ use std::f64;
 
 /// Generates poisson-disk distribution with O(N) time and space complexity relative to the number of samples generated.
 /// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
+#[derive(Debug, Clone, Copy)]
 pub struct Ebeida;
 
 impl<F, V> AlgorithmCreator<F, V> for Ebeida
@@ -21,13 +22,13 @@ impl<F, V> AlgorithmCreator<F, V> for Ebeida
           V: VecLike<F>,
 {
     type Algo = EbeidaAlgorithm<F, V>;
-    
+
     fn create(poisson: &PoissonDisk<F, V>) -> Self::Algo {
         let dim = V::dim(None);
         let grid = Grid::new(poisson.radius, poisson.poisson_type);
         let capacity = grid.cells() * dim;
         let mut indices = Vec::with_capacity(capacity);
-        let choices = (0..grid.side).collect::<Vec<_>>();
+        let choices = (0..grid.side()).collect::<Vec<_>>();
         indices.extend(each_combination(&choices));
         let range = Range::new(0, indices.len());
         let a = match dim {
@@ -123,7 +124,7 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dim(None);
         let side = 2usize.pow(self.level as u32);
-        let spacing = self.grid.cell / F::f(side);
+        let spacing = self.grid.cell() / F::f(side);
         let grid_volume = F::f(self.indices.len()) * spacing.powi(dim as i32);
         let sphere_volume  = sphere_volume(F::f(2) * poisson.radius, dim as u64);
         let lower = grid_volume / sphere_volume;
@@ -138,7 +139,7 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
 
     fn restrict(&mut self, sample: V) {
         self.success += 1;
-        let index = sample_to_index(&sample, self.grid.side);
+        let index = sample_to_index(&sample, self.grid.side());
         if let Some(g) = self.grid.get_mut(index) {
             g.push(sample);
         } else {
@@ -147,7 +148,7 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
     }
 
     fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
-        let index = sample_to_index(&sample, self.grid.side);
+        let index = sample_to_index(&sample, self.grid.side());
         is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
@@ -170,7 +171,7 @@ fn covered<F, V>(grid: &Grid<F, V>, poisson: &PoissonDisk<F, V>, outside: &[V], 
           V: VecLike<F>,
 {
     let side = 2usize.pow(level as u32);
-    let spacing = grid.cell / F::f(side);
+    let spacing = grid.cell() / F::f(side);
     let sqradius = (F::f(2) * poisson.radius).powi(2);
     let parent = get_parent(index.clone(), level);
     each_combination(&[0, 1])

@@ -4,6 +4,8 @@ use ::{PoissonDisk, VecLike, FloatLike};
 
 use rand::Rng;
 
+use std::fmt::Debug;
+
 pub use self::bridson::Bridson;
 pub use self::ebeida::Ebeida;
 
@@ -11,7 +13,7 @@ mod bridson;
 mod ebeida;
 
 /// Trait for building algorithms.
-pub trait AlgorithmCreator<F, V>
+pub trait AlgorithmCreator<F, V>: Copy + Debug
     where F: FloatLike,
           V: VecLike<F>,
 {

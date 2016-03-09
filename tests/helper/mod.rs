@@ -1,5 +1,6 @@
 #![allow(unused)]
-use poisson::{Ebeida, PoissonType, PoissonIter, PoissonDisk, VecLike, FloatLike};
+use poisson::{Bridson, Ebeida, PoissonType, PoissonIter, PoissonDisk, VecLike, FloatLike};
+use poisson::algo::AlgorithmCreator;
 
 use rand::{SeedableRng, XorShiftRng};
 
@@ -22,7 +23,7 @@ pub fn print_v<F: FloatLike + Debug, V: VecLike<F>>(v: V) -> String {
     result
 }
 
-
+#[derive(Clone, Copy)]
 pub enum When {
     Always,
     Sometimes,
@@ -38,23 +39,28 @@ pub fn test_with_samples<T>(samples: usize, relative_radius: f64, seeds: u32, pt
 pub fn test_with_samples_prefilled<'r, T, F, I>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType, mut prefiller: F, valid: When)
     where T: 'r + Debug + VecLike<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
 {
+    test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, Ebeida);
+    test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, Bridson);
+}
+
+fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType, prefiller: &mut F, valid: When, algo: A)
+    where T: 'r + Debug + VecLike<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>, A: AlgorithmCreator<f64, T>
+{
     use self::When::*;
     for i in 0..seeds {
-        unsafe{::poisson::SEED = i as usize}
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson = PoissonDisk::with_samples(samples, relative_radius, ptype);//new(rand);
-        let mut poisson_iter = poisson.build(rand, Ebeida).into_iter();
+        let mut poisson_iter = PoissonDisk::with_samples(samples, relative_radius, ptype).build(rand, algo).into_iter();
         let mut poisson = vec![];
         let mut prefil = (prefiller)(poisson_iter.radius());
         let mut last = None;
         loop {
             while let Some(p) = (prefil)(last) {
                 match valid {
-                    Always => assert!(poisson_iter.stays_legal(p), "All prefilled should be accepted by the algorithm. \
-                                    {} was rejected.", print_v(p)),
-                    Never => assert!(!poisson_iter.stays_legal(p), "All prefilled should be rejected by the algorithm. \
-                                    {} was allowed even though {:?} was last to be generated.", print_v(p), last.map(print_v)),
+                    Always => assert!(poisson_iter.stays_legal(p), "All prefilled should be accepted by the '{:?}' algorithm. \
+                                    {} was rejected.", algo, print_v(p)),
+                    Never => assert!(!poisson_iter.stays_legal(p), "All prefilled should be rejected by the '{:?}' algorithm. \
+                                    {} was allowed even though {:?} was last to be generated.", algo, print_v(p), last.map(print_v)),
                     _ => {},
                 }
                 prefilled.push(p);
@@ -76,13 +82,12 @@ pub fn test_with_samples_prefilled<'r, T, F, I>(samples: usize, relative_radius:
             } else {
                 vec![]
             }.into_iter());
-        test_poisson(poisson, radius, poisson_type);
-        // break;
+        test_poisson(poisson, radius, poisson_type, algo);
     }
 }
 
-pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
-    where I: Iterator<Item=T>, T: Debug + VecLike<f64> + Copy
+pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: PoissonType, algo: A)
+    where I: Iterator<Item=T>, T: Debug + VecLike<f64> + Copy, A: AlgorithmCreator<f64, T>
 {
     use poisson::PoissonType::*;
     let dim = T::dim(None);
@@ -94,7 +99,7 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
             if let (low, Some(high)) = iter.size_hint() {
                 hints.push((low, high));
             } else {
-                panic!("There wasn't hint for {}th iteration.", hints.len());
+                panic!("There wasn't hint for {}th iteration for the '{:?}' algorithm.", hints.len(), algo);
             }
             vecs.push(v);
         }
@@ -102,8 +107,8 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
     let len = hints.len();
     for (n, (l, h)) in hints.into_iter().enumerate() {
         let remaining = len - (n + 1);
-        assert!(l <= remaining, "Lower bound of hint should be smaller than or equal to actual: {} <= {}", l, remaining);
-        assert!(h >= remaining, "Upper bound of hint should be larger than or equal to actual: {} >= {}", h, remaining);
+        assert!(l <= remaining, "For the '{:?}' algorithm the lower bound of hint should be smaller than or equal to actual: {} <= {}", algo, l, remaining);
+        assert!(h >= remaining, "For the '{:?}' algorithm the upper bound of hint should be larger than or equal to actual: {} >= {}", algo, h, remaining);
     }
     //TODO: Figure out how to check if distribution is maximal.
     // let packing_density = vecs.len() as f64 * ::sphere::sphere_volume(poisson.radius(), dim as u64);
@@ -128,11 +133,11 @@ pub fn test_poisson<I, T>(poisson: I, radius: f64, poisson_type: PoissonType)
         },
         Normal => vecs,
     };
-    assert_legal_poisson(&vecs, radius);
+    assert_legal_poisson(&vecs, radius, algo);
 }
 
-pub fn assert_legal_poisson<T>(vecs: &Vec<T>, radius: f64)
-    where T: Debug + VecLike<f64> + Copy
+pub fn assert_legal_poisson<T, A>(vecs: &Vec<T>, radius: f64, algo: A)
+    where T: Debug + VecLike<f64> + Copy, A: AlgorithmCreator<f64, T>
 {
     for &v1 in vecs {
         for &v2 in vecs {
@@ -141,9 +146,10 @@ pub fn assert_legal_poisson<T>(vecs: &Vec<T>, radius: f64)
             }
             let dist = (v1 - v2).norm();
             assert!(dist >= radius * 2.,
-                    "Poisson-disk distribution requirement not met: There exists 2 vectors with \
+                    "Poisson-disk distribution requirement not met while generating using the '{:?}' algorithm: There exists 2 vectors with \
                      distance to each other of {} which is smaller than smallest allowed one {}. \
                      The samples: [{:?}, {:?}]",
+                    algo,
                     dist,
                     radius * 2.,
                     v1,

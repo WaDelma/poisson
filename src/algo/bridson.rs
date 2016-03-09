@@ -8,12 +8,12 @@ use rand::{Rand, Rng};
 use rand::distributions::range::Range;
 use rand::distributions::IndependentSample;
 use rand::distributions::normal::StandardNormal;
-use sphere::sphere_volume;
 
-static mut COUNTER: usize = 0;
+use sphere::sphere_volume;
 
 /// Generates approximate Poisson-disk distribution with O(N) time and space complexity relative to the number of samples generated.
 /// Based on Bridson, Robert. "Fast Poisson disk sampling in arbitrary dimensions." SIGGRAPH Sketches. 2007.
+#[derive(Debug, Clone, Copy)]
 pub struct Bridson;
 
 impl<F, V> AlgorithmCreator<F, V> for Bridson
@@ -56,21 +56,18 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
             for _ in 0..30 {
                 let sample = cur.clone() + random_point_annulus(rng, F::f(2) * poisson.radius, F::f(4) * poisson.radius);
                 if sample.iter().all(|&c| F::f(0) <= c && c <= F::f(1)) {
-                    let index = sample_to_index(&sample, self.grid.side);
+                    let index = sample_to_index(&sample, self.grid.side());
                     if self.insert_if_valid(poisson, index, sample.clone()) {
                         return Some(sample);
                     }
                 }
             }
             self.active_samples.swap_remove(index);
-            if unsafe{::SEED} == 2 {
-                // ::debug::visualise_3d(unsafe{COUNTER += 1; COUNTER}, 0, &self.grid, &vec![], &vec![], 0.5 * poisson.radius);
-            }
         }
         if self.success == 0 {
             loop {
                 let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
-                let index: V = decode(cell, self.grid.side)
+                let index: V = decode(cell, self.grid.side())
                     .expect("Because we are decoding random index within grid this should work.");
                 let sample = choose_random_sample(rng, &self.grid, index.clone(), 0);
                 if self.insert_if_valid(poisson, index, sample.clone()) {
@@ -87,7 +84,7 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dim(None);
-        let spacing = self.grid.cell;
+        let spacing = self.grid.cell();
         let grid_volume = F::f(upper) * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(F::f(2) * poisson.radius, dim as u64);
         let lower: F = grid_volume / sphere_volume;
@@ -100,7 +97,7 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
 
     fn restrict(&mut self, sample: V) {
         self.success += 1;
-        let index = sample_to_index(&sample, self.grid.side);
+        let index = sample_to_index(&sample, self.grid.side());
         if let Some(g) = self.grid.get_mut(index) {
             g.push(sample);
         } else {
@@ -109,7 +106,7 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
     }
 
     fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
-        let index = sample_to_index(&sample, self.grid.side);
+        let index = sample_to_index(&sample, self.grid.side());
         is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
