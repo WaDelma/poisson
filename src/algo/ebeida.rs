@@ -1,4 +1,4 @@
-use ::{PoissonDisk, VecLike, FloatLike};
+use {PoissonDisk, VecLike, FloatLike};
 use utils::*;
 use algo::{AlgorithmCreator, Algorithm};
 
@@ -19,7 +19,7 @@ pub struct Ebeida;
 
 impl<F, V> AlgorithmCreator<F, V> for Ebeida
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     type Algo = EbeidaAlgorithm<F, V>;
 
@@ -56,7 +56,7 @@ impl<F, V> AlgorithmCreator<F, V> for Ebeida
 
 pub struct EbeidaAlgorithm<F, V>
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     grid: Grid<F, V>,
     indices: Vec<V>,
@@ -70,7 +70,7 @@ pub struct EbeidaAlgorithm<F, V>
 
 impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     fn next<R>(&mut self, poisson: &mut PoissonDisk<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
@@ -82,21 +82,28 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
                 let cur = self.indices[index].clone();
                 let parent = get_parent(cur.clone(), self.level);
                 if !self.grid
-                       .get(parent.clone())
-                       .expect("Indexing base grid by valid parent failed.")
-                       .is_empty() {
+                        .get(parent.clone())
+                        .expect("Indexing base grid by valid parent failed.")
+                        .is_empty() {
                     self.indices.swap_remove(index);
                     if self.indices.is_empty() {
                         return None;
                     }
                     self.range = Range::new(0, self.indices.len());
                 } else {
-                    let sample = choose_random_sample(rng,
-                                                      &self.grid,
-                                                      cur.clone(),
-                                                      self.level);
-                    if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, cur.clone(), self.level, sample.clone()) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample.clone()) {
-                        self.grid.get_mut(parent)
+                    let sample = choose_random_sample(rng, &self.grid, cur.clone(), self.level);
+                    if is_disk_free(&self.grid,
+                                    poisson.radius,
+                                    poisson.poisson_type,
+                                    cur.clone(),
+                                    self.level,
+                                    sample.clone()) &&
+                       is_valid(poisson.radius,
+                                poisson.poisson_type,
+                                &self.outside,
+                                sample.clone()) {
+                        self.grid
+                            .get_mut(parent)
                             .expect("Indexing base grid by already indexed valid parent failed.")
                             .push(sample.clone());
                         self.indices.swap_remove(index);
@@ -108,7 +115,11 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
                     }
                 }
             }
-            subdivide(&mut self.indices, &self.grid, &self.outside, &poisson, self.level);
+            subdivide(&mut self.indices,
+                      &self.grid,
+                      &self.outside,
+                      &poisson,
+                      self.level);
             if self.indices.is_empty() {
                 return None;
             }
@@ -126,7 +137,7 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
         let side = 2usize.pow(self.level as u32);
         let spacing = self.grid.cell() / F::f(side);
         let grid_volume = F::f(self.indices.len()) * spacing.powi(dim as i32);
-        let sphere_volume  = sphere_volume(F::f(2) * poisson.radius, dim as u64);
+        let sphere_volume = sphere_volume(F::f(2) * poisson.radius, dim as u64);
         let lower = grid_volume / sphere_volume;
         let mut lower = lower.floor().to_usize().unwrap();
         if lower > 0 {
@@ -149,14 +160,23 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
 
     fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side());
-        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
+        is_disk_free(&self.grid,
+                     poisson.radius,
+                     poisson.poisson_type,
+                     index,
+                     0,
+                     sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
 
-fn subdivide<F, V>(indices: &mut Vec<V>, grid: &Grid<F, V>, outside: &[V], poisson: &PoissonDisk<F, V>, level: usize)
+fn subdivide<F, V>(indices: &mut Vec<V>,
+                   grid: &Grid<F, V>,
+                   outside: &[V],
+                   poisson: &PoissonDisk<F, V>,
+                   level: usize)
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     let choices = &[0, 1];
     indices.flat_map_inplace(|i| {
@@ -166,9 +186,14 @@ fn subdivide<F, V>(indices: &mut Vec<V>, grid: &Grid<F, V>, outside: &[V], poiss
     });
 }
 
-fn covered<F, V>(grid: &Grid<F, V>, poisson: &PoissonDisk<F, V>, outside: &[V], index: V, level: usize) -> bool
+fn covered<F, V>(grid: &Grid<F, V>,
+                 poisson: &PoissonDisk<F, V>,
+                 outside: &[V],
+                 index: V,
+                 level: usize)
+                 -> bool
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell() / F::f(side);

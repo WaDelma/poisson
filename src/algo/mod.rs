@@ -1,6 +1,6 @@
 //! Module that contains traits that describe poisson-disk distribution generating algorithms.
 
-use ::{PoissonDisk, VecLike, FloatLike};
+use {PoissonDisk, VecLike, FloatLike};
 
 use rand::Rng;
 
@@ -29,8 +29,7 @@ pub trait Algorithm<F, V>
           V: VecLike<F>,
 {
     /// Advances algorithm based on PoissonDisk and Rng.
-    fn next<R>(&mut self, &mut PoissonDisk<F, V>, &mut R) -> Option<V>
-        where R: Rng;
+    fn next<R>(&mut self, &mut PoissonDisk<F, V>, &mut R) -> Option<V> where R: Rng;
 
     /// Return lower and upper bound of samples remaining for algorithm to generate based on PoissonDisk.
     fn size_hint(&self, &PoissonDisk<F, V>) -> (usize, Option<usize>);

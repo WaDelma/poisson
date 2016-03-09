@@ -1,4 +1,4 @@
-use ::{PoissonType, VecLike, FloatLike};
+use {PoissonType, VecLike, FloatLike};
 
 use num::{NumCast, Float};
 
@@ -6,8 +6,7 @@ use na::Dim;
 
 // const TAU: f64
 //     = 6.283185307179586476925286766559005768394338798750211641949;
-const HALF_TAU: f64
-    = 3.141592653589793238462643383279502884197169399375105820974;
+const HALF_TAU: f64 = 3.141592653589793238462643383279502884197169399375105820974;
 
 lazy_static! {
     static ref MAX_PACKING_DENSITIES: [f64; 7] = [

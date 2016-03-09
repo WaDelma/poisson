@@ -1,6 +1,6 @@
 //! Helper functions that poisson uses.
 
-use ::{PoissonType, VecLike, FloatLike};
+use {PoissonType, VecLike, FloatLike};
 
 use num::{NumCast, Float};
 
@@ -76,7 +76,7 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usi
                     return None;
                 }
                 n.to_usize().unwrap()
-            },
+            }
         };
         index = (index + cur) * side;
     }
@@ -105,13 +105,15 @@ pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
 #[test]
 fn encoding_decoding_works() {
     let n = ::na::Vec2::new(10., 7.);
-    assert_eq!(n, decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
+    assert_eq!(n,
+               decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_decoding_at_edge_works() {
     let n = ::na::Vec2::new(14., 14.);
-    assert_eq!(n, decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
+    assert_eq!(n,
+               decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
@@ -146,7 +148,7 @@ pub fn choose_random_sample<F, V, R>(rand: &mut R, grid: &Grid<F, V>, index: V, 
 fn random_point_is_between_right_values_top_lvl() {
     use num::Zero;
     use rand::{SeedableRng, XorShiftRng};
-    use ::na::Vec2;
+    use na::Vec2;
     let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let radius = 0.2;
     let grid = Grid::<f64, ::na::Vec2<_>>::new(radius, PoissonType::Normal);
@@ -171,12 +173,12 @@ pub fn sample_to_index<F, V>(value: &V, side: usize) -> V
 }
 
 pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
-                      radius: F,
-                      poisson_type: PoissonType,
-                      index: V,
-                      level: usize,
-                      c: V)
-                      -> bool
+                          radius: F,
+                          poisson_type: PoissonType,
+                          index: V,
+                          level: usize,
+                          c: V)
+                          -> bool
     where F: FloatLike,
           V: VecLike<F>
 {
@@ -196,10 +198,11 @@ pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: PoissonType) -> F
     use PoissonType::*;
     let diff = v2 - v1;
     match poisson_type {
-        Perioditic =>
+        Perioditic => {
             each_combination(&[-1, 0, 1])
                 .map(|v| (diff.clone() + v).sqnorm())
-                .fold(F::max_value(), |a, b| a.min(b)),
+                .fold(F::max_value(), |a, b| a.min(b))
+        }
         Normal => diff.sqnorm(),
     }
 }
@@ -230,9 +233,8 @@ pub fn is_valid<F, V>(radius: F, poisson_type: PoissonType, samples: &[V], sampl
           V: VecLike<F>
 {
     let sqradius = (F::f(2) * radius).powi(2);
-    samples
-        .iter()
-        .all(|t| sqdist(t.clone(), sample.clone(), poisson_type) >= sqradius)
+    samples.iter()
+           .all(|t| sqdist(t.clone(), sample.clone(), poisson_type) >= sqradius)
 }
 
 

@@ -65,8 +65,7 @@ pub trait FloatLike:
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> FloatLike for T
-    where T: BaseFloat + Float + Rand
+impl<T> FloatLike for T where T: BaseFloat + Float + Rand
 {}
 
 /// Describes what traits vectors have.
@@ -118,7 +117,7 @@ impl Default for PoissonType {
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct PoissonDisk<F, V>
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     radius: F,
     poisson_type: PoissonType,
@@ -127,7 +126,7 @@ pub struct PoissonDisk<F, V>
 
 impl<V, F> PoissonDisk<F, V>
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
     /// New PoissonDisk with type of distribution and radius specified.
     /// The radius should be ]0, √2 / 2]
@@ -178,7 +177,7 @@ impl<V, F> PoissonDisk<F, V>
     /// Builds PoissonGen with random number generator and algorithm specified.
     pub fn build<R, A>(self, rng: R, _algo: A) -> PoissonGen<F, V, R, A>
         where R: Rng,
-              A: AlgorithmCreator<F, V>,
+              A: AlgorithmCreator<F, V>
     {
         PoissonGen::new(self, rng)
     }
@@ -190,7 +189,7 @@ pub struct PoissonGen<F, V, R, A>
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng,
-          A: AlgorithmCreator<F, V>,
+          A: AlgorithmCreator<F, V>
 {
     poisson: PoissonDisk<F, V>,
     rng: R,
@@ -201,7 +200,7 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng,
-          A: AlgorithmCreator<F, V>,
+          A: AlgorithmCreator<F, V>
 {
     fn new(poisson: PoissonDisk<F, V>, rng: R) -> Self {
         PoissonGen {
@@ -238,7 +237,7 @@ impl<F, V, R, A> IntoIterator for PoissonGen<F, V, R, A>
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng,
-          A: AlgorithmCreator<F, V>,
+          A: AlgorithmCreator<F, V>
 {
     type IntoIter = PoissonIter<F, V, R, A::Algo>;
     type Item = V;
@@ -258,18 +257,18 @@ pub struct PoissonIter<F, V, R, A>
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng,
-          A: Algorithm<F, V>,
+          A: Algorithm<F, V>
 {
     poisson: PoissonDisk<F, V>,
     rng: R,
     algo: A,
 }
 
-impl<F,V, R, A> Iterator for PoissonIter<F, V, R, A>
+impl<F, V, R, A> Iterator for PoissonIter<F, V, R, A>
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng,
-          A: Algorithm<F, V>,
+          A: Algorithm<F, V>
 {
     type Item = V;
 
@@ -286,7 +285,7 @@ impl<F, V, R, A> PoissonIter<F, V, R, A>
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng,
-          A: Algorithm<F, V>,
+          A: Algorithm<F, V>
 {
     /// Returns the radius of the generator.
     pub fn radius(&self) -> F {

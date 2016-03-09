@@ -1,4 +1,4 @@
-use ::{PoissonDisk, VecLike, FloatLike};
+use {PoissonDisk, VecLike, FloatLike};
 use utils::*;
 use algo::{AlgorithmCreator, Algorithm};
 
@@ -44,9 +44,8 @@ pub struct BridsonAlgorithm<F, V>
 
 impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
     where F: FloatLike,
-          V: VecLike<F>,
+          V: VecLike<F>
 {
-
     fn next<R>(&mut self, poisson: &mut PoissonDisk<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
@@ -54,7 +53,10 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
             let index = Range::new(0, self.active_samples.len()).ind_sample(rng);
             let cur = self.active_samples[index].clone();
             for _ in 0..30 {
-                let sample = cur.clone() + random_point_annulus(rng, F::f(2) * poisson.radius, F::f(4) * poisson.radius);
+                let sample = cur.clone() +
+                             random_point_annulus(rng,
+                                                  F::f(2) * poisson.radius,
+                                                  F::f(4) * poisson.radius);
                 if sample.iter().all(|&c| F::f(0) <= c && c <= F::f(1)) {
                     let index = sample_to_index(&sample, self.grid.side());
                     if self.insert_if_valid(poisson, index, sample.clone()) {
@@ -68,7 +70,8 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
             loop {
                 let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
                 let index: V = decode(cell, self.grid.side())
-                    .expect("Because we are decoding random index within grid this should work.");
+                                   .expect("Because we are decoding random index within grid \
+                                            this should work.");
                 let sample = choose_random_sample(rng, &self.grid, index.clone(), 0);
                 if self.insert_if_valid(poisson, index, sample.clone()) {
                     return Some(sample);
@@ -107,7 +110,12 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
 
     fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side());
-        is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index, 0, sample.clone()) &&
+        is_disk_free(&self.grid,
+                     poisson.radius,
+                     poisson.poisson_type,
+                     index,
+                     0,
+                     sample.clone()) &&
         is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
     }
 }
@@ -116,11 +124,20 @@ impl<F, V> BridsonAlgorithm<F, V>
     where F: FloatLike,
           V: VecLike<F>
 {
-    fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<F, V>, index: V, sample: V) -> bool
-    {
-        if is_disk_free(&self.grid, poisson.radius, poisson.poisson_type, index.clone(), 0, sample.clone()) && is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample.clone()) {
+    fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<F, V>, index: V, sample: V) -> bool {
+        if is_disk_free(&self.grid,
+                        poisson.radius,
+                        poisson.poisson_type,
+                        index.clone(),
+                        0,
+                        sample.clone()) &&
+           is_valid(poisson.radius,
+                    poisson.poisson_type,
+                    &self.outside,
+                    sample.clone()) {
             self.active_samples.push(sample.clone());
-            self.grid.get_mut(index)
+            self.grid
+                .get_mut(index)
                 .expect("Because the sample is [0, 1] indexing it should work.")
                 .push(sample);
             self.success += 1;
