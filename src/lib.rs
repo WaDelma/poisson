@@ -207,10 +207,17 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
     pub fn poisson_type(&self) -> PoissonType {
         self.poisson.poisson_type
     }
+}
 
+impl<F, V, R, A> PoissonGen<F, V, R, A>
+    where F: FloatLike,
+          V: VecLike<F>,
+          R: Rng + Clone,
+          A: AlgorithmCreator<F, V>
+{
     /// Generates Poisson-disk distribution.
-    pub fn generate(self) -> Vec<V> {
-        self.into_iter().collect()
+    pub fn generate(&mut self) -> Vec<V> {
+        self.clone().into_iter().collect()
     }
 }
 
