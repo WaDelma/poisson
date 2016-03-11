@@ -31,7 +31,9 @@ impl<F, V> Grid<F, V>
     pub fn new(radius: F, poisson_type: PoissonType) -> Grid<F, V> {
         let dim = F::f(V::dim(None));
         let cell = (F::f(2) * radius) / dim.sqrt();
-        let side = (F::f(1) / cell).to_usize().expect("Expected that diving 1 by cell width would be legal.");
+        let side = (F::f(1) / cell)
+                       .to_usize()
+                       .expect("Expected that diving 1 by cell width would be legal.");
         Grid {
             cell: cell,
             side: side,
@@ -70,12 +72,19 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usi
     let mut index = 0;
     for &n in v.iter() {
         let cur = match poisson_type {
-            Perioditic => n.to_isize().expect("Expected that all scalars of the index vector should be castable to isize.").modulo(side as isize) as usize,
+            Perioditic => {
+                n.to_isize()
+                 .expect("Expected that all scalars of the index vector should be castable to \
+                          isize.")
+                 .modulo(side as isize) as usize
+            }
             Normal => {
                 if n < F::f(0) || n >= F::f(side) {
                     return None;
                 }
-                n.to_usize().expect("Expected that all scalars of the index vector should be castable to usize.")
+                n.to_usize()
+                 .expect("Expected that all scalars of the index vector should be castable to \
+                          usize.")
             }
         };
         index = (index + cur) * side;
@@ -183,8 +192,8 @@ pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
     each_combination(&[-2, -1, 0, 1, 2])
         .filter_map(|t| grid.get(parent.clone() + t))
         .flat_map(|t| t)
-        .all(|v| sqdist(v.clone(), sample.clone(), poisson.poisson_type) >= sqradius)
-    && is_valid(poisson, outside, sample)
+        .all(|v| sqdist(v.clone(), sample.clone(), poisson.poisson_type) >= sqradius) &&
+    is_valid(poisson, outside, sample)
 }
 
 pub fn is_valid<F, V>(poisson: &PoissonDisk<F, V>, samples: &[V], sample: V) -> bool
@@ -263,7 +272,9 @@ impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
                 let rem = div % len;
                 div /= len;
                 let choice = self.choices[rem as usize].clone();
-                *n = NumCast::from(choice).expect("Expected that all choices were castable to float without problems.");
+                *n = NumCast::from(choice)
+                         .expect("Expected that all choices were castable to float without \
+                                  problems.");
             }
             Some(result)
         }

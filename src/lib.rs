@@ -33,7 +33,7 @@ extern crate rand;
 use rand::{Rand, Rng};
 
 extern crate num;
-use num::{NumCast};
+use num::NumCast;
 
 extern crate nalgebra as na;
 use na::{FloatVec, BaseFloat, Iterable, IterableMut};
@@ -75,11 +75,7 @@ pub trait VecLike<F>:
 {}
 impl<T, F> VecLike<F> for T
     where F: FloatLike,
-          T: FloatVec<F> +
-             IterableMut<F> +
-             Iterable<F> +
-             Rand +
-             Clone
+          T: FloatVec<F> + IterableMut<F> + Iterable<F> + Rand + Clone
 {}
 
 /// Enum for determining the type of poisson-disk distribution.
@@ -114,7 +110,8 @@ impl<V, F> PoissonDisk<F, V>
     /// The radius should be ]0, √2 / 2]
     pub fn with_radius(radius: F, poisson_type: PoissonType) -> Self {
         assert!(F::f(0) < radius);
-        assert!(radius <= NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
+        assert!(radius <=
+                NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
         PoissonDisk {
             radius: radius,
             poisson_type: poisson_type,
@@ -128,7 +125,8 @@ impl<V, F> PoissonDisk<F, V>
         assert!(relative >= F::f(0));
         assert!(relative <= F::f(1));
         PoissonDisk {
-            radius: relative * NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
+            radius: relative *
+                    NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
             poisson_type: poisson_type,
             _marker: PhantomData,
         }
@@ -195,7 +193,8 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: F) {
         assert!(F::f(0) < radius);
-        assert!(radius <= NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
+        assert!(radius <=
+                NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
         self.poisson.radius = radius;
     }
 

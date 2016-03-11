@@ -129,7 +129,10 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
         let grid_volume = F::f(self.indices.len()) * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(F::f(2) * poisson.radius, dim as u64);
         let lower = grid_volume / sphere_volume;
-        let mut lower = lower.floor().to_usize().expect("Grids volume divided by spheres volume should be always castable to usize.");
+        let mut lower = lower.floor()
+                             .to_usize()
+                             .expect("Grids volume divided by spheres volume should be always \
+                                      castable to usize.");
         if lower > 0 {
             lower -= 1;
         }
@@ -150,12 +153,7 @@ impl<F, V> Algorithm<F, V> for EbeidaAlgorithm<F, V>
 
     fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side());
-        is_disk_free(&self.grid,
-                     poisson,
-                     index,
-                     0,
-                     sample.clone(),
-                     &self.outside)
+        is_disk_free(&self.grid, poisson, index, 0, sample.clone(), &self.outside)
     }
 }
 
