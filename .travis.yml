@@ -1,16 +1,33 @@
+sudo: false
 language: rust
+
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+
+rust:
+  - nightly
+  - beta
+  - stable
+
+before_script:
+  - |
+      pip install 'travis-cargo<0.2' --user &&
+      export PATH=$HOME/.local/bin:$PATH
+
 script:
-- cargo test
-- cargo bench
-- cargo doc
-after_success: |-
-  [ $TRAVIS_BRANCH = master ] &&
-  [ $TRAVIS_PULL_REQUEST = false ] &&
-  cargo doc &&
-  echo "<meta http-equiv=refresh content=0;url=`echo $TRAVIS_REPO_SLUG | cut -d '/' -f 2`/index.html>" > target/doc/index.html &&
-  sudo pip install ghp-import &&
-  ghp-import -n target/doc &&
-  git push -fq https://${GH_TOKEN}@github.com/${TRAVIS_REPO_SLUG}.git gh-pages
+  - |
+      travis-cargo build &&
+      travis-cargo test &&
+      travis-cargo bench &&
+      travis-cargo --only stable doc
+
+after_success:
+  - travis-cargo --only stable doc-upload
+
 env:
   global:
-    secure: YxFXtYxzmowZdAlWrtsO0VVljYLGDPUobgpRaqAea57daJEV+xWdCx8yWLh4LLG0KyNbqSNUr0zRhWv4qMrFMoGM/HgPJaNhlnEim6XN7W42ojAIjAO+cOWlTeDwXc+HFEf9JyyNDcvuSQZQ2pQZjRxhJK1J+/qixhOl937Gs69ai7FeokQWzZe+CaGPcZD8ZeVc3JV5c48VrfA/42vedmshPj6i28OBy7VKOPnSkBaGPmGJfHEkefPy5Sjb6LBeKdqIb1Ed17MmlOGFK3QXKXfkDYErby/cZiYpVBaQPiuOyzs9v+qrnf/g5TnaTlazO0k/wcB/RF7BCtU6EsMjxag+DPFTZYiZ3dlIkJf0TUaJ4YHvl4IyYxYQ4flx2iwdwxokQIrGQbgzKGRLAdG1IrrZmMKwJ/C2IohWa1nUyIp+LxuPrGGuVnmgoyRcn1woPdpXWvi4BNAirw4xZzwU/Da9wQh+CyNH6Xw8od8AW366SBDNY3f2JBWRD29oWIpUEMfv2045Kw57U2KP++utVPtsEaody6wpqTTB1j2RiHXuBkau6gS/PlUEzrUAEkh4GcAMYkmMi63aCgKTsIaKq/4llmI0JoxUTeANMU8tpu3t6w3wxEs6D5U3KJIthxBeYsB8lo63rawmf9m/iL6ZazBaN3sqGMUWpvs05Sf5TBQ=
+    - secure: "YxFXtYxzmowZdAlWrtsO0VVljYLGDPUobgpRaqAea57daJEV+xWdCx8yWLh4LLG0KyNbqSNUr0zRhWv4qMrFMoGM/HgPJaNhlnEim6XN7W42ojAIjAO+cOWlTeDwXc+HFEf9JyyNDcvuSQZQ2pQZjRxhJK1J+/qixhOl937Gs69ai7FeokQWzZe+CaGPcZD8ZeVc3JV5c48VrfA/42vedmshPj6i28OBy7VKOPnSkBaGPmGJfHEkefPy5Sjb6LBeKdqIb1Ed17MmlOGFK3QXKXfkDYErby/cZiYpVBaQPiuOyzs9v+qrnf/g5TnaTlazO0k/wcB/RF7BCtU6EsMjxag+DPFTZYiZ3dlIkJf0TUaJ4YHvl4IyYxYQ4flx2iwdwxokQIrGQbgzKGRLAdG1IrrZmMKwJ/C2IohWa1nUyIp+LxuPrGGuVnmgoyRcn1woPdpXWvi4BNAirw4xZzwU/Da9wQh+CyNH6Xw8od8AW366SBDNY3f2JBWRD29oWIpUEMfv2045Kw57U2KP++utVPtsEaody6wpqTTB1j2RiHXuBkau6gS/PlUEzrUAEkh4GcAMYkmMi63aCgKTsIaKq/4llmI0JoxUTeANMU8tpu3t6w3wxEs6D5U3KJIthxBeYsB8lo63rawmf9m/iL6ZazBaN3sqGMUWpvs05Sf5TBQ="
