@@ -216,7 +216,7 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
           A: AlgorithmCreator<F, V>
 {
     /// Generates Poisson-disk distribution.
-    pub fn generate(&mut self) -> Vec<V> {
+    pub fn generate(&self) -> Vec<V> {
         self.clone().into_iter().collect()
     }
 }
