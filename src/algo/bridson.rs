@@ -53,10 +53,10 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
             let index = Range::new(0, self.active_samples.len()).ind_sample(rng);
             let cur = self.active_samples[index].clone();
             for _ in 0..30 {
+                let min = F::f(2) * poisson.radius;
+                let max = F::f(4) * poisson.radius;
                 let sample = cur.clone() +
-                             random_point_annulus(rng,
-                                                  F::f(2) * poisson.radius,
-                                                  F::f(4) * poisson.radius);
+                             random_point_annulus(rng, min, max);
                 if sample.iter().all(|&c| F::f(0) <= c && c <= F::f(1)) {
                     let index = sample_to_index(&sample, self.grid.side());
                     if self.insert_if_valid(poisson, index, sample.clone()) {
@@ -91,7 +91,7 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
         let grid_volume = F::f(upper) * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(F::f(2) * poisson.radius, dim as u64);
         let lower: F = grid_volume / sphere_volume;
-        let mut lower = lower.floor().to_usize().unwrap();
+        let mut lower = lower.floor().to_usize().expect("Grids volume divided by spheres volume should be always castable to usize.");
         if lower > 0 {
             lower -= 1;
         }
@@ -111,12 +111,11 @@ impl<F, V> Algorithm<F, V> for BridsonAlgorithm<F, V>
     fn stays_legal(&self, poisson: &PoissonDisk<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side());
         is_disk_free(&self.grid,
-                     poisson.radius,
-                     poisson.poisson_type,
+                     poisson,
                      index,
                      0,
-                     sample.clone()) &&
-        is_valid(poisson.radius, poisson.poisson_type, &self.outside, sample)
+                     sample.clone(),
+                     &self.outside)
     }
 }
 
@@ -126,15 +125,11 @@ impl<F, V> BridsonAlgorithm<F, V>
 {
     fn insert_if_valid(&mut self, poisson: &mut PoissonDisk<F, V>, index: V, sample: V) -> bool {
         if is_disk_free(&self.grid,
-                        poisson.radius,
-                        poisson.poisson_type,
+                        poisson,
                         index.clone(),
                         0,
-                        sample.clone()) &&
-           is_valid(poisson.radius,
-                    poisson.poisson_type,
-                    &self.outside,
-                    sample.clone()) {
+                        sample.clone(),
+                        &self.outside) {
             self.active_samples.push(sample.clone());
             self.grid
                 .get_mut(index)
@@ -156,7 +151,7 @@ fn random_point_annulus<F, V, R>(rand: &mut R, min: F, max: F) -> V
     loop {
         let mut result = V::zero();
         for c in result.iter_mut() {
-            *c = NumCast::from(StandardNormal::rand(rand).0).unwrap();
+            *c = NumCast::from(StandardNormal::rand(rand).0).expect("The f64 produced by StandardNormal should be always castable to float.");
         }
         let result = result.normalize() * F::rand(rand) * max;
         if result.norm() >= min {

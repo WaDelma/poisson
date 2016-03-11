@@ -87,3 +87,17 @@ fn adding_to_outside_of_edges_start_works() {
     };
     helper::test_with_samples_prefilled(samples, relative_radius, 100, PoissonType::Normal, prefiller, Always);
 }
+
+#[test]
+fn completely_filled_works() {
+    let samples = 100;
+    let relative_radius = 0.8;
+    let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
+    let prefiller = |_| {
+        let mut pre = PoissonDisk::<_, Vect>::with_samples(samples, relative_radius, PoissonType::Normal)
+            .build(rand.clone(), Ebeida)
+            .into_iter();
+        move |_| pre.next()
+    };
+    helper::test_with_samples_prefilled(samples, relative_radius, 100, PoissonType::Normal, prefiller, Always);
+}

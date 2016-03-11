@@ -1,6 +1,6 @@
 //! Helper functions that poisson uses.
 
-use {PoissonType, VecLike, FloatLike};
+use {PoissonDisk, PoissonType, VecLike, FloatLike};
 
 use num::{NumCast, Float};
 
@@ -31,11 +31,11 @@ impl<F, V> Grid<F, V>
     pub fn new(radius: F, poisson_type: PoissonType) -> Grid<F, V> {
         let dim = F::f(V::dim(None));
         let cell = (F::f(2) * radius) / dim.sqrt();
-        let side = (F::f(1) / cell).to_usize().unwrap();
+        let side = (F::f(1) / cell).to_usize().expect("Expected that diving 1 by cell width would be legal.");
         Grid {
             cell: cell,
             side: side,
-            data: vec![vec![]; side.pow(dim.to_u32().unwrap())],
+            data: vec![vec![]; side.pow(dim.to_u32().expect("Dimension should be always be castable to u32."))],
             poisson_type: poisson_type,
             _marker: PhantomData,
         }
@@ -70,12 +70,12 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usi
     let mut index = 0;
     for &n in v.iter() {
         let cur = match poisson_type {
-            Perioditic => n.to_isize().unwrap().modulo(side as isize) as usize,
+            Perioditic => n.to_isize().expect("Expected that all scalars of the index vector should be castable to isize.").modulo(side as isize) as usize,
             Normal => {
                 if n < F::f(0) || n >= F::f(side) {
                     return None;
                 }
-                n.to_usize().unwrap()
+                n.to_usize().expect("Expected that all scalars of the index vector should be castable to usize.")
             }
         };
         index = (index + cur) * side;
@@ -129,19 +129,14 @@ fn decoding_outside_of_area_fails() {
     assert_eq!(None, decode::<f64, ::na::Vec2<_>>(100, 10));
 }
 
-pub fn choose_random_sample<F, V, R>(rand: &mut R, grid: &Grid<F, V>, index: V, level: usize) -> V
+pub fn choose_random_sample<F, V, R>(rng: &mut R, grid: &Grid<F, V>, index: V, level: usize) -> V
     where F: FloatLike,
           V: VecLike<F>,
           R: Rng
 {
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / F::f(side);
-    let mut result = index * spacing;
-    for n in result.iter_mut() {
-        let place = F::rand(rand);
-        *n = *n + place * spacing;
-    }
-    result
+    (index + V::rand(rng)) * spacing
 }
 
 #[test]
@@ -173,23 +168,34 @@ pub fn sample_to_index<F, V>(value: &V, side: usize) -> V
 }
 
 pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
-                          radius: F,
-                          poisson_type: PoissonType,
+                          poisson: &PoissonDisk<F, V>,
                           index: V,
                           level: usize,
-                          c: V)
+                          sample: V,
+                          outside: &[V])
                           -> bool
     where F: FloatLike,
           V: VecLike<F>
 {
     let parent = get_parent(index, level);
-    let sqradius = (F::f(2) * radius).powi(2);
-    // TODO: This does unnessary checks at corners...
+    let sqradius = (F::f(2) * poisson.radius).powi(2);
+    // NOTE: This does unnessary checks for corners, but it doesn't affect much in higher dimensions: 5^d vs 5^d - 2d
     each_combination(&[-2, -1, 0, 1, 2])
         .filter_map(|t| grid.get(parent.clone() + t))
         .flat_map(|t| t)
-        .all(|v| sqdist(v.clone(), c.clone(), poisson_type) >= sqradius)
+        .all(|v| sqdist(v.clone(), sample.clone(), poisson.poisson_type) >= sqradius)
+    && is_valid(poisson, outside, sample)
 }
+
+pub fn is_valid<F, V>(poisson: &PoissonDisk<F, V>, samples: &[V], sample: V) -> bool
+    where F: FloatLike,
+          V: VecLike<F>
+{
+    let sqradius = (F::f(2) * poisson.radius).powi(2);
+    samples.iter()
+           .all(|t| sqdist(t.clone(), sample.clone(), poisson.poisson_type) >= sqradius)
+}
+
 
 pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: PoissonType) -> F
     where F: FloatLike,
@@ -228,16 +234,6 @@ fn getting_parent_works() {
                           divides));
 }
 
-pub fn is_valid<F, V>(radius: F, poisson_type: PoissonType, samples: &[V], sample: V) -> bool
-    where F: FloatLike,
-          V: VecLike<F>
-{
-    let sqradius = (F::f(2) * radius).powi(2);
-    samples.iter()
-           .all(|t| sqdist(t.clone(), sample.clone(), poisson_type) >= sqradius)
-}
-
-
 pub struct CombiIter<'a, F, FF, V>
     where F: FloatLike,
           FF: NumCast + 'a,
@@ -267,7 +263,7 @@ impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
                 let rem = div % len;
                 div /= len;
                 let choice = self.choices[rem as usize].clone();
-                *n = NumCast::from(choice).unwrap();
+                *n = NumCast::from(choice).expect("Expected that all choices were castable to float without problems.");
             }
             Some(result)
         }

@@ -25,7 +25,6 @@
 //!     println!("{:?}", samples);
 //! }
 //! ```
-extern crate image;
 extern crate modulo;
 
 extern crate sphere;
@@ -34,16 +33,14 @@ extern crate rand;
 use rand::{Rand, Rng};
 
 extern crate num;
-use num::{NumCast, Float, Zero, One};
+use num::{NumCast};
 
 extern crate nalgebra as na;
-use na::{BaseFloat, Dim, Norm, Iterable, IterableMut};
+use na::{FloatVec, BaseFloat, Iterable, IterableMut};
 
 #[macro_use]
 extern crate lazy_static;
 
-use std::cmp::PartialEq;
-use std::ops::{Sub, Mul, Add, Div};
 use std::marker::PhantomData;
 
 use algo::{AlgorithmCreator, Algorithm};
@@ -57,7 +54,6 @@ mod utils;
 /// Describes what traits floats have.
 pub trait FloatLike:
     BaseFloat +
-    Float +
     Rand
 {
     /// Casts usize to float.
@@ -65,38 +61,24 @@ pub trait FloatLike:
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> FloatLike for T where T: BaseFloat + Float + Rand
+impl<T> FloatLike for T where T: BaseFloat + Rand
 {}
 
 /// Describes what traits vectors have.
 pub trait VecLike<F>:
+    FloatVec<F> +
     IterableMut<F> +
     Iterable<F> +
-    Add<Output = Self> +
-    Sub<Output = Self> +
-    Mul<F, Output = Self> +
-    Div<F, Output = Self> +
-    Norm<F> +
-    PartialEq +
-    Zero +
-    One +
-    Dim +
+    Rand +
     Clone
     where F: FloatLike
 {}
 impl<T, F> VecLike<F> for T
     where F: FloatLike,
-          T: IterableMut<F> +
+          T: FloatVec<F> +
+             IterableMut<F> +
              Iterable<F> +
-             Add<Output = T> +
-             Sub<Output = T> +
-             Mul<F, Output = T> +
-             Div<F, Output = T> +
-             Norm<F> +
-             PartialEq +
-             Zero +
-             One +
-             Dim +
+             Rand +
              Clone
 {}
 
@@ -132,7 +114,7 @@ impl<V, F> PoissonDisk<F, V>
     /// The radius should be ]0, √2 / 2]
     pub fn with_radius(radius: F, poisson_type: PoissonType) -> Self {
         assert!(F::f(0) < radius);
-        assert!(radius <= NumCast::from(2f64.sqrt() / 2.).unwrap());
+        assert!(radius <= NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
         PoissonDisk {
             radius: radius,
             poisson_type: poisson_type,
@@ -146,7 +128,7 @@ impl<V, F> PoissonDisk<F, V>
         assert!(relative >= F::f(0));
         assert!(relative <= F::f(1));
         PoissonDisk {
-            radius: relative * NumCast::from(2f64.sqrt() / 2.).unwrap(),
+            radius: relative * NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
             poisson_type: poisson_type,
             _marker: PhantomData,
         }
@@ -213,7 +195,7 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: F) {
         assert!(F::f(0) < radius);
-        assert!(radius <= NumCast::from(2f64.sqrt() / 2.).unwrap());
+        assert!(radius <= NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
         self.poisson.radius = radius;
     }
 
