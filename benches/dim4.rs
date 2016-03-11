@@ -4,7 +4,7 @@ extern crate test;
 use test::{Bencher, black_box};
 
 extern crate poisson;
-use poisson::{PoissonDisk, Ebeida, Bridson};
+use poisson::{PoissonDisk, PoissonType, Ebeida, Bridson};
 
 extern crate rand;
 use rand::{SeedableRng, XorShiftRng};
