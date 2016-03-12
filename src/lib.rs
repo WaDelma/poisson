@@ -10,7 +10,7 @@
 //!
 //! ```
 //! extern crate poisson;
-//! use poisson::{PoissonDisk, PoissonType, Ebeida};
+//! use poisson::{Builder, Type, algorithm};
 //!
 //! extern crate rand;
 //!
@@ -19,8 +19,8 @@
 //!
 //! fn main() {
 //!     let poisson =
-//!         PoissonDisk::<_, Vec2>::with_radius(0.1, PoissonType::Normal)
-//!             .build(rand::weak_rng(), Ebeida);
+//!         Builder::<_, Vec2>::with_radius(0.1, Type::Normal)
+//!             .build(rand::weak_rng(), algorithm::Ebeida);
 //!     let samples = poisson.generate();
 //!     println!("{:?}", samples);
 //! }
@@ -43,88 +43,86 @@ extern crate lazy_static;
 
 use std::marker::PhantomData;
 
-use algo::{AlgorithmCreator, Algorithm};
+use algorithm::{Creator, Algorithm};
 use utils::math::calc_radius;
 
-pub use algo::{Ebeida, Bridson};
-
-pub mod algo;
+pub mod algorithm;
 mod utils;
 
-/// Describes what traits floats have.
-pub trait FloatLike:
+/// Describes what floats are.
+pub trait Float:
     BaseFloat +
     Rand
 {
     /// Casts usize to float.
-    fn f(n: usize) -> Self {
+    fn cast(n: usize) -> Self {
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> FloatLike for T where T: BaseFloat + Rand
+impl<T> Float for T where T: BaseFloat + Rand
 {}
 
-/// Describes what traits vectors have.
-pub trait VecLike<F>:
+/// Describes what vectors are.
+pub trait Vector<F>:
     FloatVec<F> +
     IterableMut<F> +
     Iterable<F> +
     Rand +
     Clone
-    where F: FloatLike
+    where F: Float
 {}
-impl<T, F> VecLike<F> for T
-    where F: FloatLike,
+impl<T, F> Vector<F> for T
+    where F: Float,
           T: FloatVec<F> + IterableMut<F> + Iterable<F> + Rand + Clone
 {}
 
 /// Enum for determining the type of poisson-disk distribution.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum PoissonType {
+pub enum Type {
     Normal,
     Perioditic,
 }
 
-impl Default for PoissonType {
-    fn default() -> PoissonType {
-        PoissonType::Normal
+impl Default for Type {
+    fn default() -> Type {
+        Type::Normal
     }
 }
 
-/// Builder for PoissonGen.
+/// Builder for the generator.
 #[derive(Default, Clone, Debug, PartialEq)]
-pub struct PoissonDisk<F, V>
-    where F: FloatLike,
-          V: VecLike<F>
+pub struct Builder<F, V>
+    where F: Float,
+          V: Vector<F>
 {
     radius: F,
-    poisson_type: PoissonType,
+    poisson_type: Type,
     _marker: PhantomData<V>,
 }
 
-impl<V, F> PoissonDisk<F, V>
-    where F: FloatLike,
-          V: VecLike<F>
+impl<V, F> Builder<F, V>
+    where F: Float,
+          V: Vector<F>
 {
-    /// New PoissonDisk with type of distribution and radius specified.
+    /// New Builder with type of distribution and radius specified.
     /// The radius should be ]0, √2 / 2]
-    pub fn with_radius(radius: F, poisson_type: PoissonType) -> Self {
-        assert!(F::f(0) < radius);
+    pub fn with_radius(radius: F, poisson_type: Type) -> Self {
+        assert!(F::cast(0) < radius);
         assert!(radius <=
                 NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
-        PoissonDisk {
+        Builder {
             radius: radius,
             poisson_type: poisson_type,
             _marker: PhantomData,
         }
     }
 
-    /// New PoissonDisk with type of distribution and relative radius specified.
+    /// New Builder with type of distribution and relative radius specified.
     /// The relative radius should be ]0, 1]
-    pub fn with_relative_radius(relative: F, poisson_type: PoissonType) -> Self {
-        assert!(relative >= F::f(0));
-        assert!(relative <= F::f(1));
-        PoissonDisk {
+    pub fn with_relative_radius(relative: F, poisson_type: Type) -> Self {
+        assert!(relative >= F::cast(0));
+        assert!(relative <= F::cast(1));
+        Builder {
             radius: relative *
                     NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
             poisson_type: poisson_type,
@@ -132,12 +130,12 @@ impl<V, F> PoissonDisk<F, V>
         }
     }
 
-    /// New PoissonDisk with type of distribution, approximate amount of samples and relative radius specified.
+    /// New Builder with type of distribution, approximate amount of samples and relative radius specified.
     /// The amount of samples should be larger than 0.
     /// The relative radius should be [0, 1].
     /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
-    pub fn with_samples(samples: usize, relative: F, poisson_type: PoissonType) -> Self {
-        PoissonDisk {
+    pub fn with_samples(samples: usize, relative: F, poisson_type: Type) -> Self {
+        Builder {
             radius: calc_radius::<F, V>(samples, relative, poisson_type),
             poisson_type: poisson_type,
             _marker: PhantomData,
@@ -150,40 +148,40 @@ impl<V, F> PoissonDisk<F, V>
     }
 
     /// Returns the type of the generator.
-    pub fn poisson_type(&self) -> PoissonType {
+    pub fn poisson_type(&self) -> Type {
         self.poisson_type
     }
 
-    /// Builds PoissonGen with random number generator and algorithm specified.
-    pub fn build<R, A>(self, rng: R, _algo: A) -> PoissonGen<F, V, R, A>
+    /// Builds generator with random number generator and algorithm specified.
+    pub fn build<R, A>(self, rng: R, _algo: A) -> Generator<F, V, R, A>
         where R: Rng,
-              A: AlgorithmCreator<F, V>
+              A: Creator<F, V>
     {
-        PoissonGen::new(self, rng)
+        Generator::new(self, rng)
     }
 }
 
 /// Generates poisson-disk distribution for [0, 1]² area.
 #[derive(Clone, Debug)]
-pub struct PoissonGen<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+pub struct Generator<F, V, R, A>
+    where F: Float,
+          V: Vector<F>,
           R: Rng,
-          A: AlgorithmCreator<F, V>
+          A: Creator<F, V>
 {
-    poisson: PoissonDisk<F, V>,
+    poisson: Builder<F, V>,
     rng: R,
     _algo: PhantomData<A>,
 }
 
-impl<F, V, R, A> PoissonGen<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+impl<F, V, R, A> Generator<F, V, R, A>
+    where F: Float,
+          V: Vector<F>,
           R: Rng,
-          A: AlgorithmCreator<F, V>
+          A: Creator<F, V>
 {
-    fn new(poisson: PoissonDisk<F, V>, rng: R) -> Self {
-        PoissonGen {
+    fn new(poisson: Builder<F, V>, rng: R) -> Self {
+        Generator {
             rng: rng,
             poisson: poisson,
             _algo: PhantomData,
@@ -192,7 +190,7 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
 
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: F) {
-        assert!(F::f(0) < radius);
+        assert!(F::cast(0) < radius);
         assert!(radius <=
                 NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
         self.poisson.radius = radius;
@@ -204,16 +202,16 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
     }
 
     /// Returns the type of the generator.
-    pub fn poisson_type(&self) -> PoissonType {
+    pub fn poisson_type(&self) -> Type {
         self.poisson.poisson_type
     }
 }
 
-impl<F, V, R, A> PoissonGen<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+impl<F, V, R, A> Generator<F, V, R, A>
+    where F: Float,
+          V: Vector<F>,
           R: Rng + Clone,
-          A: AlgorithmCreator<F, V>
+          A: Creator<F, V>
 {
     /// Generates Poisson-disk distribution.
     pub fn generate(&self) -> Vec<V> {
@@ -221,11 +219,11 @@ impl<F, V, R, A> PoissonGen<F, V, R, A>
     }
 }
 
-impl<F, V, R, A> IntoIterator for PoissonGen<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+impl<F, V, R, A> IntoIterator for Generator<F, V, R, A>
+    where F: Float,
+          V: Vector<F>,
           R: Rng,
-          A: AlgorithmCreator<F, V>
+          A: Creator<F, V>
 {
     type IntoIter = PoissonIter<F, V, R, A::Algo>;
     type Item = V;
@@ -242,19 +240,19 @@ impl<F, V, R, A> IntoIterator for PoissonGen<F, V, R, A>
 /// Iterator for generating poisson-disk distribution.
 #[derive(Clone)]
 pub struct PoissonIter<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+    where F: Float,
+          V: Vector<F>,
           R: Rng,
           A: Algorithm<F, V>
 {
-    poisson: PoissonDisk<F, V>,
+    poisson: Builder<F, V>,
     rng: R,
     algo: A,
 }
 
 impl<F, V, R, A> Iterator for PoissonIter<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+    where F: Float,
+          V: Vector<F>,
           R: Rng,
           A: Algorithm<F, V>
 {
@@ -270,8 +268,8 @@ impl<F, V, R, A> Iterator for PoissonIter<F, V, R, A>
 }
 
 impl<F, V, R, A> PoissonIter<F, V, R, A>
-    where F: FloatLike,
-          V: VecLike<F>,
+    where F: Float,
+          V: Vector<F>,
           R: Rng,
           A: Algorithm<F, V>
 {
@@ -281,7 +279,7 @@ impl<F, V, R, A> PoissonIter<F, V, R, A>
     }
 
     /// Returns the type of the generator.
-    pub fn poisson_type(&self) -> PoissonType {
+    pub fn poisson_type(&self) -> Type {
         self.poisson.poisson_type
     }
 

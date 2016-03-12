@@ -1,5 +1,5 @@
 extern crate poisson;
-use poisson::PoissonType::*;
+use poisson::Type::*;
 
 extern crate rand;
 

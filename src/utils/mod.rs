@@ -1,8 +1,8 @@
 //! Helper functions that poisson uses.
 
-use {PoissonDisk, PoissonType, VecLike, FloatLike};
+use {Builder, Type, Vector, Float};
 
-use num::{NumCast, Float};
+use num::NumCast;
 
 use rand::{Rand, Rng};
 
@@ -14,24 +14,24 @@ pub mod math;
 
 #[derive(Clone)]
 pub struct Grid<F, V>
-    where F: FloatLike,
-          V: VecLike<F>
+    where F: Float,
+          V: Vector<F>
 {
     data: Vec<Vec<V>>,
     side: usize,
     cell: F,
-    poisson_type: PoissonType,
+    poisson_type: Type,
     _marker: PhantomData<F>,
 }
 
 impl<F, V> Grid<F, V>
-    where F: FloatLike,
-          V: VecLike<F>
+    where F: Float,
+          V: Vector<F>
 {
-    pub fn new(radius: F, poisson_type: PoissonType) -> Grid<F, V> {
-        let dim = F::f(V::dim(None));
-        let cell = (F::f(2) * radius) / dim.sqrt();
-        let side = (F::f(1) / cell)
+    pub fn new(radius: F, poisson_type: Type) -> Grid<F, V> {
+        let dim = F::cast(V::dim(None));
+        let cell = (F::cast(2) * radius) / dim.sqrt();
+        let side = (F::cast(1) / cell)
                        .to_usize()
                        .expect("Expected that diving 1 by cell width would be legal.");
         Grid {
@@ -64,11 +64,11 @@ impl<F, V> Grid<F, V>
     }
 }
 
-pub fn encode<F, V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usize>
-    where F: FloatLike,
-          V: VecLike<F>
+pub fn encode<F, V>(v: &V, side: usize, poisson_type: Type) -> Option<usize>
+    where F: Float,
+          V: Vector<F>
 {
-    use PoissonType::*;
+    use Type::*;
     let mut index = 0;
     for &n in v.iter() {
         let cur = match poisson_type {
@@ -79,7 +79,7 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usi
                  .modulo(side as isize) as usize
             }
             Normal => {
-                if n < F::f(0) || n >= F::f(side) {
+                if n < F::cast(0) || n >= F::cast(side) {
                     return None;
                 }
                 n.to_usize()
@@ -93,8 +93,8 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: PoissonType) -> Option<usi
 }
 
 pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
-    where F: FloatLike,
-          V: VecLike<F>
+    where F: Float,
+          V: Vector<F>
 {
     use num::Zero;
     let dim = V::dim(None);
@@ -105,7 +105,7 @@ pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
     let mut last = index;
     for n in result.iter_mut().rev() {
         let cur = last / side;
-        *n = F::f(last - cur * side);
+        *n = F::cast(last - cur * side);
         last = cur;
     }
     Some(result)
@@ -115,22 +115,22 @@ pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
 fn encoding_decoding_works() {
     let n = ::na::Vec2::new(10., 7.);
     assert_eq!(n,
-               decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
+               decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_decoding_at_edge_works() {
     let n = ::na::Vec2::new(14., 14.);
     assert_eq!(n,
-               decode(encode(&n, 15, PoissonType::Normal).unwrap(), 15).unwrap());
+               decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_outside_of_area_fails() {
     let n = ::na::Vec2::new(9., 7.);
-    assert_eq!(None, encode(&n, 9, PoissonType::Normal));
+    assert_eq!(None, encode(&n, 9, Type::Normal));
     let n = ::na::Vec2::new(7., 9.);
-    assert_eq!(None, encode(&n, 9, PoissonType::Normal));
+    assert_eq!(None, encode(&n, 9, Type::Normal));
 }
 
 #[test]
@@ -139,12 +139,12 @@ fn decoding_outside_of_area_fails() {
 }
 
 pub fn choose_random_sample<F, V, R>(rng: &mut R, grid: &Grid<F, V>, index: V, level: usize) -> V
-    where F: FloatLike,
-          V: VecLike<F>,
+    where F: Float,
+          V: Vector<F>,
           R: Rng
 {
     let side = 2usize.pow(level as u32);
-    let spacing = grid.cell / F::f(side);
+    let spacing = grid.cell / F::cast(side);
     (index + V::rand(rng)) * spacing
 }
 
@@ -155,7 +155,7 @@ fn random_point_is_between_right_values_top_lvl() {
     use na::Vec2;
     let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let radius = 0.2;
-    let grid = Grid::<f64, ::na::Vec2<_>>::new(radius, PoissonType::Normal);
+    let grid = Grid::<f64, ::na::Vec2<_>>::new(radius, Type::Normal);
     for _ in 0..1000 {
         let result = choose_random_sample(&mut rand, &grid, Vec2::<f64>::zero(), 0);
         assert!(result.x >= 0.);
@@ -166,28 +166,28 @@ fn random_point_is_between_right_values_top_lvl() {
 }
 
 pub fn sample_to_index<F, V>(value: &V, side: usize) -> V
-    where F: FloatLike,
-          V: VecLike<F>
+    where F: Float,
+          V: Vector<F>
 {
     let mut cur = value.clone();
     for c in cur.iter_mut() {
-        *c = (*c * F::f(side)).floor();
+        *c = (*c * F::cast(side)).floor();
     }
     cur
 }
 
 pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
-                          poisson: &PoissonDisk<F, V>,
+                          poisson: &Builder<F, V>,
                           index: V,
                           level: usize,
                           sample: V,
                           outside: &[V])
                           -> bool
-    where F: FloatLike,
-          V: VecLike<F>
+    where F: Float,
+          V: Vector<F>
 {
     let parent = get_parent(index, level);
-    let sqradius = (F::f(2) * poisson.radius).powi(2);
+    let sqradius = (F::cast(2) * poisson.radius).powi(2);
     // NOTE: This does unnessary checks for corners, but it doesn't affect much in higher dimensions: 5^d vs 5^d - 2d
     each_combination(&[-2, -1, 0, 1, 2])
         .filter_map(|t| grid.get(parent.clone() + t))
@@ -196,21 +196,21 @@ pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
     is_valid(poisson, outside, sample)
 }
 
-pub fn is_valid<F, V>(poisson: &PoissonDisk<F, V>, samples: &[V], sample: V) -> bool
-    where F: FloatLike,
-          V: VecLike<F>
+pub fn is_valid<F, V>(poisson: &Builder<F, V>, samples: &[V], sample: V) -> bool
+    where F: Float,
+          V: Vector<F>
 {
-    let sqradius = (F::f(2) * poisson.radius).powi(2);
+    let sqradius = (F::cast(2) * poisson.radius).powi(2);
     samples.iter()
            .all(|t| sqdist(t.clone(), sample.clone(), poisson.poisson_type) >= sqradius)
 }
 
 
-pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: PoissonType) -> F
-    where F: FloatLike,
-          V: VecLike<F>
+pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: Type) -> F
+    where F: Float,
+          V: Vector<F>
 {
-    use PoissonType::*;
+    use Type::*;
     let diff = v2 - v1;
     match poisson_type {
         Perioditic => {
@@ -223,12 +223,12 @@ pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: PoissonType) -> F
 }
 
 pub fn get_parent<F, V>(mut index: V, level: usize) -> V
-    where F: FloatLike,
-          V: VecLike<F>
+    where F: Float,
+          V: Vector<F>
 {
     let split = 2usize.pow(level as u32);
     for n in index.iter_mut() {
-        *n = (*n / F::f(split)).floor();
+        *n = (*n / F::cast(split)).floor();
     }
     index
 }
@@ -244,9 +244,9 @@ fn getting_parent_works() {
 }
 
 pub struct CombiIter<'a, F, FF, V>
-    where F: FloatLike,
+    where F: Float,
           FF: NumCast + 'a,
-          V: VecLike<F>
+          V: Vector<F>
 {
     cur: usize,
     choices: &'a [FF],
@@ -254,9 +254,9 @@ pub struct CombiIter<'a, F, FF, V>
 }
 
 impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
-    where F: FloatLike,
+    where F: Float,
           FF: NumCast + Clone,
-          V: VecLike<F>
+          V: Vector<F>
 {
     type Item = V;
     fn next(&mut self) -> Option<Self::Item> {
@@ -283,9 +283,9 @@ impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
 
 /// Iterates through all combinations of vectors with allowed values as scalars.
 pub fn each_combination<'a, F, FF, V>(choices: &[FF]) -> CombiIter<F, FF, V>
-    where F: FloatLike + 'a,
+    where F: Float + 'a,
           FF: NumCast,
-          V: VecLike<F>
+          V: Vector<F>
 {
     CombiIter {
         cur: 0,

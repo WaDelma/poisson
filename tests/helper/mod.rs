@@ -1,17 +1,13 @@
 #![allow(unused)]
-use poisson::{Bridson, Ebeida, PoissonType, PoissonIter, PoissonDisk, VecLike, FloatLike};
-use poisson::algo::AlgorithmCreator;
+use poisson::{Type, Builder, Vector, Float, algorithm};
 
 use rand::{SeedableRng, XorShiftRng};
 
 use std::fmt::Debug;
 
-extern crate num;
-use self::num::Float;
-
 use na::Norm;
 
-pub fn print_v<F: FloatLike + Debug, V: VecLike<F>>(v: V) -> String {
+pub fn print_v<F: Float + Debug, V: Vector<F>>(v: V) -> String {
     let mut result = "(".to_owned();
     for i in v.iter() {
         result.push_str(&format!("{:?}, ", i));
@@ -30,27 +26,27 @@ pub enum When {
     Never,
 }
 
-pub fn test_with_samples<T>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType)
-    where T: Debug + VecLike<f64> + Copy
+pub fn test_with_samples<T>(samples: usize, relative_radius: f64, seeds: u32, ptype: Type)
+    where T: Debug + Vector<f64> + Copy
 {
     test_with_samples_prefilled(samples, relative_radius, seeds, ptype, |_| |_| None::<T>, When::Always);
 }
 
-pub fn test_with_samples_prefilled<'r, T, F, I>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType, mut prefiller: F, valid: When)
-    where T: 'r + Debug + VecLike<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
+pub fn test_with_samples_prefilled<'r, T, F, I>(samples: usize, relative_radius: f64, seeds: u32, ptype: Type, mut prefiller: F, valid: When)
+    where T: 'r + Debug + Vector<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
 {
-    test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, Ebeida);
-    test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, Bridson);
+    test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, algorithm::Ebeida);
+    test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, algorithm::Bridson);
 }
 
-fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, ptype: PoissonType, prefiller: &mut F, valid: When, algo: A)
-    where T: 'r + Debug + VecLike<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>, A: AlgorithmCreator<f64, T>
+fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, ptype: Type, prefiller: &mut F, valid: When, algo: A)
+    where T: 'r + Debug + Vector<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>, A: algorithm::Creator<f64, T>
 {
     use self::When::*;
     for i in 0..seeds {
         let mut prefilled = vec![];
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
-        let mut poisson_iter = PoissonDisk::with_samples(samples, relative_radius, ptype).build(rand, algo).into_iter();
+        let mut poisson_iter = Builder::with_samples(samples, relative_radius, ptype).build(rand, algo).into_iter();
         let mut poisson = vec![];
         let mut prefil = (prefiller)(poisson_iter.radius());
         let mut last = None;
@@ -86,10 +82,10 @@ fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, p
     }
 }
 
-pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: PoissonType, algo: A)
-    where I: Iterator<Item=T>, T: Debug + VecLike<f64> + Copy, A: AlgorithmCreator<f64, T>
+pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: Type, algo: A)
+    where I: Iterator<Item=T>, T: Debug + Vector<f64> + Copy, A: algorithm::Creator<f64, T>
 {
-    use poisson::PoissonType::*;
+    use poisson::Type::*;
     let dim = T::dim(None);
     let mut vecs = vec![];
     let mut hints = vec![];
@@ -137,7 +133,7 @@ pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: PoissonType,
 }
 
 pub fn assert_legal_poisson<T, A>(vecs: &Vec<T>, radius: f64, algo: A)
-    where T: Debug + VecLike<f64> + Copy, A: AlgorithmCreator<f64, T>
+    where T: Debug + Vector<f64> + Copy, A: algorithm::Creator<f64, T>
 {
     for &v1 in vecs {
         for &v2 in vecs {

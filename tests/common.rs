@@ -1,5 +1,5 @@
 extern crate poisson;
-use poisson::{PoissonType, PoissonDisk};
+use poisson::{Type, Builder};
 
 extern crate rand;
 
@@ -10,13 +10,13 @@ pub type Vec2 = naVec2<f64>;
 #[test]
 #[should_panic]
 fn test_normal_too_small_radius() {
-    let _ = PoissonDisk::<_, Vec2>::with_radius(0.0, PoissonType::Normal);
+    let _ = Builder::<_, Vec2>::with_radius(0.0, Type::Normal);
 }
 
 #[test]
 #[should_panic]
 fn test_normal_too_large_radius() {
-    let _ = PoissonDisk::<_, Vec2>::with_radius(2f64.sqrt() / 2.0 + 0.0001, PoissonType::Normal);
+    let _ = Builder::<_, Vec2>::with_radius(2f64.sqrt() / 2.0 + 0.0001, Type::Normal);
 }
 
 // #[test]
@@ -34,14 +34,14 @@ fn test_normal_too_large_radius() {
 // #[test]
 // fn test_calc_radius_smallest_alpha_calculates_valid() {
 //     let r = calc_radius(1, 0.000001);
-//     PoissonDisk::new(rand::weak_rng(), r);
+//     Builder::new(rand::weak_rng(), r);
 // }
 //
 //
 // #[test]
 // fn test_calc_radius_largest_alpha_calculates_valid() {
 //     let r = calc_radius(1, 1.0);
-//     PoissonDisk::new(rand::weak_rng(), r);
+//     Builder::new(rand::weak_rng(), r);
 // }
 //
 //
