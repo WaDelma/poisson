@@ -8,8 +8,6 @@ use rand::distributions::IndependentSample;
 
 use sphere::sphere_volume;
 
-use std::f64;
-
 /// Generates uniform maximal poisson-disk distribution with O(n2<sup>d</sup>) time and O(n2<sup>d</sup>) space complexity relative to the number of samples generated and the dimensionality of the sampling volume.
 /// Based on Ebeida, Mohamed S., et al. "A Simple Algorithm for Maximal Poisson‐Disk Sampling in High Dimensions." Computer Graphics Forum. Vol. 31. No. 2pt4. Blackwell Publishing Ltd, 2012.
 #[derive(Debug, Clone, Copy)]
@@ -45,6 +43,10 @@ impl<F, V> Creator<F, V> for Ebeida
             level: 0,
             success: 0,
             outside: vec![],
+            mantissa_digits: {
+                let (mantissa, _, _) = F::max_value().integer_decode();
+                mantissa.count_ones() as usize
+            }
         }
     }
 }
@@ -60,6 +62,7 @@ pub struct Algo<F, V>
     throws: usize,
     success: usize,
     outside: Vec<V>,
+    mantissa_digits: usize,
     a: f64,
 }
 
@@ -70,8 +73,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
     fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
-        // TODO: Figure out how many bits are in mantissa genericly.
-        while !self.indices.is_empty() && self.level < f64::MANTISSA_DIGITS as usize {
+        while !self.indices.is_empty() && self.level < self.mantissa_digits {
             while self.throws > 0 {
                 self.throws -= 1;
                 let index = self.range.ind_sample(rng);

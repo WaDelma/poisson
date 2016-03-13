@@ -27,9 +27,8 @@ fn adding_valid_start_works() {
         let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida)
             .into_iter()
-            .take(25)
-            .map(Some);
-        move |_| pre.next().and_then(|s| s)
+            .take(25);
+        move |_| pre.next()
     };
     helper::test_with_samples_prefilled(samples, relative_radius, 100, Type::Normal, prefiller, Always);
 }

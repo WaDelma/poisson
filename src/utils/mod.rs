@@ -33,7 +33,7 @@ impl<F, V> Grid<F, V>
         let cell = (F::cast(2) * radius) / dim.sqrt();
         let side = (F::cast(1) / cell)
                        .to_usize()
-                       .expect("Expected that diving 1 by cell width would be legal.");
+                       .expect("Expected that dividing 1 by cell width would be legal.");
         Grid {
             cell: cell,
             side: side,

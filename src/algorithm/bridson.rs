@@ -65,16 +65,14 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
             }
             self.active_samples.swap_remove(index);
         }
-        if self.success == 0 {
-            loop {
-                let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
-                let index: V = decode(cell, self.grid.side())
-                                   .expect("Because we are decoding random index within grid \
-                                            this should work.");
-                let sample = choose_random_sample(rng, &self.grid, index.clone(), 0);
-                if self.insert_if_valid(poisson, index, sample.clone()) {
-                    return Some(sample);
-                }
+        while self.success == 0 {
+            let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
+            let index: V = decode(cell, self.grid.side())
+                               .expect("Because we are decoding random index within grid \
+                                        this should work.");
+            let sample = choose_random_sample(rng, &self.grid, index.clone(), 0);
+            if self.insert_if_valid(poisson, index, sample.clone()) {
+                return Some(sample);
             }
         }
         None
@@ -82,7 +80,11 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
 
     fn size_hint(&self, poisson: &Builder<F, V>) -> (usize, Option<usize>) {
         // Calculating upper bound should work because there is this many places left in the grid and no more can fit into it.
-        let upper = self.grid.cells() - self.success;
+        let upper = if self.grid.cells() > self.success {
+            self.grid.cells() - self.success
+        } else {
+            0
+        };
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dim(None);

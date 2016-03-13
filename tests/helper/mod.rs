@@ -48,10 +48,10 @@ fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, p
         let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
         let mut poisson_iter = Builder::with_samples(samples, relative_radius, ptype).build(rand, algo).into_iter();
         let mut poisson = vec![];
-        let mut prefil = (prefiller)(poisson_iter.radius());
+        let mut prefill = (prefiller)(poisson_iter.radius());
         let mut last = None;
         loop {
-            while let Some(p) = (prefil)(last) {
+            while let Some(p) = (prefill)(last) {
                 match valid {
                     Always => assert!(poisson_iter.stays_legal(p), "All prefilled should be accepted by the '{:?}' algorithm. \
                                     {} was rejected.", algo, print_v(p)),
