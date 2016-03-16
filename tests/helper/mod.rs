@@ -3,14 +3,17 @@ use poisson::{Type, Builder, Vector, Float, algorithm};
 
 use rand::{SeedableRng, XorShiftRng};
 
-use std::fmt::Debug;
+extern crate num;
+use self::num::NumCast;
 
 use na::Norm;
 
-pub fn print_v<F: Float + Debug, V: Vector<F>>(v: V) -> String {
+use std::fmt::Debug;
+
+pub fn print_v<F: Float, V: Vector<F>>(v: V) -> String {
     let mut result = "(".to_owned();
     for i in v.iter() {
-        result.push_str(&format!("{:?}, ", i));
+        result.push_str(&format!("{}, ", i.to_f64().unwrap()));
     }
     if V::dim(None) != 0 {
         result.pop();
@@ -82,8 +85,8 @@ fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, p
     }
 }
 
-pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: Type, algo: A)
-    where I: Iterator<Item=T>, T: Debug + Vector<f64> + Copy, A: algorithm::Creator<f64, T>
+pub fn test_poisson<F, I, T, A>(poisson: I, radius: F, poisson_type: Type, algo: A)
+    where I: Iterator<Item=T>, F: Float, T: Debug + Vector<F> + Copy, A: algorithm::Creator<F, T>
 {
     use poisson::Type::*;
     let dim = T::dim(None);
@@ -106,10 +109,7 @@ pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: Type, algo: 
         assert!(l <= remaining, "For the '{:?}' algorithm the lower bound of hint should be smaller than or equal to actual: {} <= {}", algo, l, remaining);
         assert!(h >= remaining, "For the '{:?}' algorithm the upper bound of hint should be larger than or equal to actual: {} >= {}", algo, h, remaining);
     }
-    //TODO: Figure out how to check if distribution is maximal.
-    // let packing_density = vecs.len() as f64 * ::sphere::sphere_volume(poisson.radius(), dim as u64);
-    // println!("{}", packing_density);
-    // panic!();
+
     let vecs = match poisson_type {
         Perioditic => {
             let mut vecs2 = vec![];
@@ -119,7 +119,7 @@ pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: Type, algo: 
                 for i in t.iter_mut() {
                     let rem = div % 3;
                     div /= 3;
-                    *i = (rem - 1) as f64;
+                    *i = NumCast::from(rem - 1).unwrap();
                 }
                 for v in &vecs {
                     vecs2.push(*v + t);
@@ -129,11 +129,13 @@ pub fn test_poisson<I, T, A>(poisson: I, radius: f64, poisson_type: Type, algo: 
         },
         Normal => vecs,
     };
+
+    //TODO: Figure out how to check if distribution is maximal.
     assert_legal_poisson(&vecs, radius, algo);
 }
 
-pub fn assert_legal_poisson<T, A>(vecs: &Vec<T>, radius: f64, algo: A)
-    where T: Debug + Vector<f64> + Copy, A: algorithm::Creator<f64, T>
+pub fn assert_legal_poisson<F, T, A>(vecs: &Vec<T>, radius: F, algo: A)
+    where F: Float, T: Debug + Vector<F> + Copy, A: algorithm::Creator<F, T>
 {
     for &v1 in vecs {
         for &v2 in vecs {
@@ -141,13 +143,13 @@ pub fn assert_legal_poisson<T, A>(vecs: &Vec<T>, radius: f64, algo: A)
                 continue;
             }
             let dist = (v1 - v2).norm();
-            assert!(dist >= radius * 2.,
+            assert!(dist > radius * F::cast(2),
                     "Poisson-disk distribution requirement not met while generating using the '{:?}' algorithm: There exists 2 vectors with \
                      distance to each other of {} which is smaller than smallest allowed one {}. \
                      The samples: [{:?}, {:?}]",
                     algo,
-                    dist,
-                    radius * 2.,
+                    dist.to_f64().unwrap(),
+                    radius.to_f64().unwrap() * 2.,
                     v1,
                     v2);
         }

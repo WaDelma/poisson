@@ -73,7 +73,10 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
     fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
-        while !self.indices.is_empty() && self.level < self.mantissa_digits {
+        if self.indices.is_empty() {
+            return None;
+        }
+        while self.level < self.mantissa_digits {
             while self.throws > 0 {
                 self.throws -= 1;
                 let index = self.range.ind_sample(rng);
@@ -117,7 +120,20 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
             self.throws = (self.a * self.indices.len() as f64).ceil() as usize;
             self.level += 1;
         }
-        None
+        let index = self.range.ind_sample(rng);
+        let cur = self.indices.swap_remove(index);
+        let side = 2usize.pow(self.level as u32);
+        let sample = index_to_sample(&cur, side);
+        if is_disk_free(&self.grid,
+                        poisson,
+                        cur.clone(),
+                        self.level,
+                        sample.clone(),
+                        &self.outside) {
+            Some(sample)
+        } else {
+            None
+        }
     }
 
     fn size_hint(&self, poisson: &Builder<F, V>) -> (usize, Option<usize>) {
@@ -181,6 +197,7 @@ fn covered<F, V>(grid: &Grid<F, V>,
     where F: Float,
           V: Vector<F>
 {
+    // TODO: This does 4^d checking of points even though it could be done 3^d
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell() / F::cast(side);
     let sqradius = (F::cast(2) * poisson.radius).powi(2);
@@ -194,5 +211,4 @@ fn covered<F, V>(grid: &Grid<F, V>,
                 .any(|v| sqdist(v.clone(), t.clone(), poisson.poisson_type) < sqradius) ||
             !is_valid(poisson, &outside, t)
         })
-
 }

@@ -176,6 +176,17 @@ pub fn sample_to_index<F, V>(value: &V, side: usize) -> V
     cur
 }
 
+pub fn index_to_sample<F, V>(value: &V, side: usize) -> V
+    where F: Float,
+          V: Vector<F>
+{
+    let mut cur = value.clone();
+    for c in cur.iter_mut() {
+        *c = *c / F::cast(side);
+    }
+    cur
+}
+
 pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
                           poisson: &Builder<F, V>,
                           index: V,
