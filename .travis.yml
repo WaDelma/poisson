@@ -15,7 +15,9 @@ rust:
 
 matrix:
   allow_failures:
-    - rust: nightly
+    - rust:
+      - nightly
+      - beta
 
 before_script:
   - |
@@ -26,7 +28,7 @@ script:
   - |
       travis-cargo build &&
       travis-cargo test &&
-      travis_wait travis-cargo bench &&
+      travis_wait 60 travis-cargo bench &&
       travis-cargo --only stable doc
 
 after_success:
