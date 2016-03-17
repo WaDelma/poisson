@@ -31,15 +31,6 @@ fn bench_ebeida_4d_10_80_normal(b: &mut Bencher) {
 }
 
 #[bench]
-fn bench_ebeida_4d_100_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
-    let poisson =
-        Builder::<_, Vect>::with_samples(100, 0.8, Type::Normal)
-            .build(rand, algorithm::Ebeida);
-    b.iter(|| black_box(poisson.generate()));
-}
-
-#[bench]
 fn bench_bridson_4d_1_80_normal(b: &mut Bencher) {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let poisson =
@@ -53,15 +44,6 @@ fn bench_bridson_4d_10_80_normal(b: &mut Bencher) {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let poisson =
         Builder::<_, Vect>::with_samples(10, 0.8, Type::Normal)
-            .build(rand, algorithm::Bridson);
-    b.iter(|| black_box(poisson.generate()));
-}
-
-#[bench]
-fn bench_bridson_4d_100_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
-    let poisson =
-        Builder::<_, Vect>::with_samples(100, 0.8, Type::Normal)
             .build(rand, algorithm::Bridson);
     b.iter(|| black_box(poisson.generate()));
 }
