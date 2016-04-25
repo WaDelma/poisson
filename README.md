@@ -1,5 +1,5 @@
 # poisson    
-**poisson** is library for generating n-dimensional [poisson-disk distributions](http://devmag.org.za/2009/05/03/poisson-disk-sampling/).    
+**poisson** is library for generating n-dimensional [poisson-disk distributions](http://mollyrocket.com/casey/stream_0014.html).    
 
 [![Build Status](https://travis-ci.org/WaDelma/poisson.svg?branch=master)](https://travis-ci.org/WaDelma/poisson)   
 
