@@ -79,7 +79,10 @@ impl<T, F> Vector<F> for T
 /// Enum for determining the type of poisson-disk distribution.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Type {
+    /// Acts like there is void all around the space placing no restrictions to sides.
     Normal,
+    /// Makes the space to wrap around on edges allowing tiling of poisson-disk distribution.
+    /// This makes samples next to a edge restrict samples on opposite one.
     Perioditic,
 }
 
