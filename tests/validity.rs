@@ -9,9 +9,9 @@ extern crate sphere;
 
 extern crate nalgebra as na;
 use na::{Norm, IterableMut};
-pub type Vect = na::Vec2<f64>;
+pub type Vect = na::Vector2<f64>;
 
-extern crate num;
+extern crate num_traits as num;
 use num::Zero;
 
 use helper::When::*;

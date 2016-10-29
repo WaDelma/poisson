@@ -20,7 +20,7 @@ impl<F, V> Creator<F, V> for Ebeida
     type Algo = Algo<F, V>;
 
     fn create(poisson: &Builder<F, V>) -> Self::Algo {
-        let dim = V::dim(None);
+        let dim = V::dimension(None);
         let grid = Grid::new(poisson.radius, poisson.poisson_type);
         let mut indices = Vec::with_capacity(grid.cells() * dim);
         let choices = (0..grid.side()).collect::<Vec<_>>();
@@ -139,7 +139,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
     fn size_hint(&self, poisson: &Builder<F, V>) -> (usize, Option<usize>) {
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
-        let dim = V::dim(None);
+        let dim = V::dimension(None);
         let side = 2usize.pow(self.level as u32);
         let spacing = self.grid.cell() / F::cast(side);
         let grid_volume = F::cast(self.indices.len()) * spacing.powi(dim as i32);

@@ -15,7 +15,7 @@
 //! extern crate rand;
 //!
 //! extern crate nalgebra as na;
-//! type Vec2 = na::Vec2<f64>;
+//! type Vec2 = na::Vector2<f64>;
 //!
 //! fn main() {
 //!     let poisson =
@@ -32,11 +32,12 @@ extern crate sphere;
 extern crate rand;
 use rand::{Rand, Rng};
 
-extern crate num;
+extern crate num_traits as num;
 use num::NumCast;
+use num::Float as NumFloat;
 
 extern crate nalgebra as na;
-use na::{FloatVec, BaseFloat, Iterable, IterableMut};
+use na::{FloatVector, BaseFloat, Iterable, IterableMut};
 
 #[macro_use]
 extern crate lazy_static;
@@ -52,6 +53,7 @@ mod utils;
 /// Describes what floats are.
 pub trait Float:
     BaseFloat +
+    NumFloat +
     Rand
 {
     /// Casts usize to float.
@@ -59,12 +61,12 @@ pub trait Float:
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> Float for T where T: BaseFloat + Rand
+impl<T> Float for T where T: BaseFloat + NumFloat + Rand
 {}
 
 /// Describes what vectors are.
 pub trait Vector<F>:
-    FloatVec<F> +
+    FloatVector<F> +
     IterableMut<F> +
     Iterable<F> +
     Rand +
@@ -73,7 +75,7 @@ pub trait Vector<F>:
 {}
 impl<T, F> Vector<F> for T
     where F: Float,
-          T: FloatVec<F> + IterableMut<F> + Iterable<F> + Rand + Clone
+          T: FloatVector<F> + IterableMut<F> + Iterable<F> + Rand + Clone
 {}
 
 /// Enum for determining the type of poisson-disk distribution.

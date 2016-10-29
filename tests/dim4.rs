@@ -6,7 +6,7 @@ extern crate rand;
 extern crate sphere;
 
 extern crate nalgebra as na;
-pub type Vect = na::Vec4<f64>;
+pub type Vect = na::Vector4<f64>;
 
 mod helper;
 use helper::test_with_samples;

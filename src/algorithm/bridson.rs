@@ -87,7 +87,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         };
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
-        let dim = V::dim(None);
+        let dim = V::dimension(None);
         let spacing = self.grid.cell();
         let grid_volume = F::cast(upper) * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(F::cast(2) * poisson.radius, dim as u64);

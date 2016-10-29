@@ -2,30 +2,28 @@ use {Type, Vector, Float};
 
 use num::NumCast;
 
-use na::Dim;
+use na::Dimension;
 
-// const TAU: f64
-//     = 6.283185307179586476925286766559005768394338798750211641949;
-const HALF_TAU: f64 = 3.141592653589793238462643383279502884197169399375105820974;
+const TAU: f64 = 6.283185307179586476925286766559005768394338798750211641949;
 
 lazy_static! {
     static ref MAX_PACKING_DENSITIES: [f64; 7] = [
-        1. / 6. * HALF_TAU * 3f64.sqrt(),
-        1. / 6. * HALF_TAU * 2f64.sqrt(),
-        1. / 16. * HALF_TAU.powi(2),
-        1. / 30. * HALF_TAU.powi(2) * 2f64.sqrt(),
-        1. / 144. * HALF_TAU.powi(3) * 3f64.sqrt(),
-        1. / 105. * HALF_TAU.powi(3),
-        1. / 384. * HALF_TAU.powi(4),
+        1. / 12. * TAU * 3f64.sqrt(),
+        1. / 12. * TAU * 2f64.sqrt(),
+        1. / 64. * TAU.powi(2),
+        1. / 120. * TAU.powi(2) * 2f64.sqrt(),
+        1. / 1152. * TAU.powi(3) * 3f64.sqrt(),
+        1. / 840. * TAU.powi(3),
+        1. / 6144. * TAU.powi(4),
         ];
     // gamma((index + 2) / 2 + 1)
     static ref GAMMA: [f64; 7] = [
         1.,
-        (3. * HALF_TAU.sqrt()) / 4.,
+        (3. * TAU.sqrt() * 1. / 2f64.sqrt()) / 4.,
         2.,
-        (15. * HALF_TAU.sqrt()) / 8.,
+        (15. * TAU.sqrt() * 1. / 2f64.sqrt()) / 8.,
         6.,
-        (105. * HALF_TAU.sqrt()) / 16.,
+        (105. * TAU.sqrt() * 1. / 2f64.sqrt()) / 16.,
         24.,
         ];
     static ref MAX_RADII: [f64; 7] = [
@@ -52,7 +50,7 @@ lazy_static! {
 
 fn precalc(dim: usize) -> f64 {
     let index = dim - 2;
-    (MAX_PACKING_DENSITIES[index] * GAMMA[index]) / HALF_TAU.powf(dim as f64 / 2.)
+    (MAX_PACKING_DENSITIES[index] * GAMMA[index]) / (0.5 * TAU).powf(dim as f64 / 2.)
 }
 
 fn newton(samples: usize, dim: usize) -> usize {
@@ -79,11 +77,11 @@ pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: Type) -> F
           V: Vector<F>
 {
     use Type::*;
-    assert!(Type::Perioditic == poisson_type || V::dim(None) < 5);
+    assert!(Type::Perioditic == poisson_type || V::dimension(None) < 5);
     assert!(samples > 0);
     assert!(relative >= F::cast(0));
     assert!(relative <= F::cast(1));
-    let dim = V::dim(None);
+    let dim = V::dimension(None);
     let samples = match poisson_type {
         Perioditic => samples,
         Normal => newton(samples, dim),

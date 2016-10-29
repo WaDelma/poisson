@@ -3,7 +3,7 @@ use poisson::{Type, Builder, Vector, Float, algorithm};
 
 use rand::{SeedableRng, XorShiftRng};
 
-extern crate num;
+extern crate num_traits as num;
 use self::num::NumCast;
 
 use na::Norm;
@@ -15,7 +15,7 @@ pub fn print_v<F: Float, V: Vector<F>>(v: V) -> String {
     for i in v.iter() {
         result.push_str(&format!("{}, ", i.to_f64().unwrap()));
     }
-    if V::dim(None) != 0 {
+    if V::dimension(None) != 0 {
         result.pop();
     }
     result.push(')');
@@ -89,7 +89,7 @@ pub fn test_poisson<F, I, T, A>(poisson: I, radius: F, poisson_type: Type, algo:
     where I: Iterator<Item=T>, F: Float, T: Debug + Vector<F> + Copy, A: algorithm::Creator<F, T>
 {
     use poisson::Type::*;
-    let dim = T::dim(None);
+    let dim = T::dimension(None);
     let mut vecs = vec![];
     let mut hints = vec![];
     {
