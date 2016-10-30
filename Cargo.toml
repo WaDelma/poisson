@@ -17,5 +17,8 @@ lazy_static = "0.1"
 modulo = "0.1"
 sphere = "0.3"
 
+[dev-dependencies]
+quickcheck = "*"
+
 [profile.test]
 opt-level = 3

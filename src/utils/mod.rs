@@ -187,6 +187,20 @@ pub fn index_to_sample<F, V>(value: &V, side: usize) -> V
     cur
 }
 
+#[cfg(test)]
+quickcheck! {
+    fn index_prop(x: f64, y: f64, max: usize) -> bool {
+        if !(0. <= x && x < 1. && 0. <= y && y < 1.) {
+            return true;
+        }
+        if max == 0 {
+            return true;
+        }
+        let xs = ::na::Vector2::new(x, y);
+        xs == index_to_sample(&sample_to_index(&xs, max), max)
+    }
+}
+
 pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
                           poisson: &Builder<F, V>,
                           index: V,

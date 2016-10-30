@@ -25,6 +25,10 @@
 //!     println!("{:?}", samples);
 //! }
 //! ```
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
+
 extern crate modulo;
 
 extern crate sphere;
