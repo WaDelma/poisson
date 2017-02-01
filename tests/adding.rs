@@ -24,8 +24,8 @@ fn adding_valid_start_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
     let prefiller = |_| {
-        let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
-            .build(rand.clone(), algorithm::Ebeida)
+        let mut pre = Builder::<_, Vect>::new().with_poisson_type(Type::Normal).with_samples(samples, relative_radius)
+            .build(rand.clone(), algorithm::Ebeida).unwrap()
             .into_iter()
             .take(25);
         move |_| pre.next()
@@ -39,8 +39,8 @@ fn adding_valid_middle_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([1, 1, 2, 3]);
     let prefiller = |_| {
-        let prefiller = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
-            .build(rand.clone(), algorithm::Ebeida);
+        let prefiller = Builder::<_, Vect>::new().with_poisson_type(Type::Normal).with_samples(samples, relative_radius)
+            .build(rand.clone(), algorithm::Ebeida).unwrap();
         let mut pre = repeat(None)
             .take(25)
             .chain(prefiller
@@ -93,8 +93,8 @@ fn completely_filled_works() {
     let relative_radius = 0.8;
     let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
     let prefiller = |_| {
-        let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
-            .build(rand.clone(), algorithm::Ebeida)
+        let mut pre = Builder::<_, Vect>::new().with_poisson_type(Type::Normal).with_samples(samples, relative_radius)
+            .build(rand.clone(), algorithm::Ebeida).unwrap()
             .into_iter();
         move |_| pre.next()
     };

@@ -1,4 +1,4 @@
-use {Builder, Vector, Float};
+use {PoissonConfiguration, Vector, Float};
 use algorithm::{Creator, Algorithm};
 use utils::*;
 
@@ -22,7 +22,7 @@ impl<F, V> Creator<F, V> for Bridson
 {
     type Algo = Algo<F, V>;
 
-    fn create(poisson: &Builder<F, V>) -> Self::Algo {
+    fn create(poisson: &PoissonConfiguration<F, V>) -> Self::Algo {
         Algo {
             grid: Grid::new(poisson.radius, poisson.poisson_type),
             active_samples: vec![],
@@ -46,7 +46,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
     where F: Float,
           V: Vector<F>
 {
-    fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
+    fn next<R>(&mut self, poisson: &mut PoissonConfiguration<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
         while !self.active_samples.is_empty() {
@@ -78,7 +78,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         None
     }
 
-    fn size_hint(&self, poisson: &Builder<F, V>) -> (usize, Option<usize>) {
+    fn size_hint(&self, poisson: &PoissonConfiguration<F, V>) -> (usize, Option<usize>) {
         // Calculating upper bound should work because there is this many places left in the grid and no more can fit into it.
         let upper = if self.grid.cells() > self.success {
             self.grid.cells() - self.success
@@ -112,7 +112,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         }
     }
 
-    fn stays_legal(&self, poisson: &Builder<F, V>, sample: V) -> bool {
+    fn stays_legal(&self, poisson: &PoissonConfiguration<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side());
         is_disk_free(&self.grid, poisson, index, 0, sample.clone(), &self.outside)
     }
@@ -122,7 +122,7 @@ impl<F, V> Algo<F, V>
     where F: Float,
           V: Vector<F>
 {
-    fn insert_if_valid(&mut self, poisson: &mut Builder<F, V>, index: V, sample: V) -> bool {
+    fn insert_if_valid(&mut self, poisson: &mut PoissonConfiguration<F, V>, index: V, sample: V) -> bool {
         if is_disk_free(&self.grid,
                         poisson,
                         index.clone(),

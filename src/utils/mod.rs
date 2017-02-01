@@ -1,6 +1,6 @@
 //! Helper functions that poisson uses.
 
-use {Builder, Type, Vector, Float};
+use {PoissonConfiguration, Type, Vector, Float};
 
 use num::NumCast;
 
@@ -188,7 +188,7 @@ pub fn index_to_sample<F, V>(value: &V, side: usize) -> V
 }
 
 pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
-                          poisson: &Builder<F, V>,
+                          poisson: &PoissonConfiguration<F, V>,
                           index: V,
                           level: usize,
                           sample: V,
@@ -207,7 +207,7 @@ pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
     is_valid(poisson, outside, sample)
 }
 
-pub fn is_valid<F, V>(poisson: &Builder<F, V>, samples: &[V], sample: V) -> bool
+pub fn is_valid<F, V>(poisson: &PoissonConfiguration<F, V>, samples: &[V], sample: V) -> bool
     where F: Float,
           V: Vector<F>
 {

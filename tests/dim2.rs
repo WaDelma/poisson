@@ -16,13 +16,13 @@ use helper::test_with_samples;
 #[test]
 fn test_one_sample_works() {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
-    let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
-    let builder = builder.build(rand, algorithm::Ebeida);
+    let builder = Builder::<_, Vect>::new().with_poisson_type(Normal).with_samples(1, 0.8);
+    let builder = builder.build(rand, algorithm::Ebeida).unwrap();
     builder.into_iter().collect::<Vec<Vect>>();
 
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
-    let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
-    let builder = builder.build(rand, algorithm::Bridson);
+    let builder = Builder::<_, Vect>::new().with_poisson_type(Normal).with_samples(1, 0.8);
+    let builder = builder.build(rand, algorithm::Bridson).unwrap();
     builder.into_iter().collect::<Vec<Vect>>();
 }
 

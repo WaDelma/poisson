@@ -19,8 +19,8 @@
 //!
 //! fn main() {
 //!     let poisson =
-//!         Builder::<_, Vec2>::with_radius(0.1, Type::Normal)
-//!             .build(rand::weak_rng(), algorithm::Ebeida);
+//!         Builder::<_, Vec2>::new().with_poisson_type(Type::Normal).with_radius(0.1)
+//!             .build(rand::weak_rng(), algorithm::Ebeida).unwrap();
 //!     let samples = poisson.generate();
 //!     println!("{:?}", samples);
 //! }
@@ -92,9 +92,21 @@ impl Default for Type {
     }
 }
 
-/// Builder for the generator.
-#[derive(Default, Clone, Debug, PartialEq)]
-pub struct Builder<F, V>
+/// This is the error type for the `Builder::build` function.
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum ConfigurationError {
+    RadiusInvalid,
+    RadiusUnspecified,
+    RadiusMultiplyDefined,
+    PoissonTypeUnspecified,
+    PoissonTypeMultiplyDefined,
+    SampleCountInvalid,
+    SampleApproximationUnsupported,
+    PoissonTypeUnknownAtRadiusCalculation,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct PoissonConfiguration<F, V>
     where F: Float,
           V: Vector<F>
 {
@@ -103,64 +115,128 @@ pub struct Builder<F, V>
     _marker: PhantomData<V>,
 }
 
+/// Builder for the Generator.
+#[derive(Default, Clone, Debug, PartialEq)]
+pub struct Builder<F, V>
+    where F: Float,
+          V: Vector<F>
+{
+    radius: Option<F>,
+    poisson_type: Option<Type>,
+    error: Option<ConfigurationError>,
+    _marker: PhantomData<V>,
+}
+
 impl<V, F> Builder<F, V>
     where F: Float,
           V: Vector<F>
 {
-    /// New Builder with type of distribution and radius specified.
-    /// The radius should be ]0, √2 / 2]
-    pub fn with_radius(radius: F, poisson_type: Type) -> Self {
-        assert!(F::cast(0) < radius);
-        assert!(radius <=
-                NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
+    /// Creates a new Builder with all options unset
+    pub fn new() -> Self {
         Builder {
-            radius: radius,
-            poisson_type: poisson_type,
+            radius: None,
+            poisson_type: None,
+            error: None,
             _marker: PhantomData,
         }
     }
 
-    /// New Builder with type of distribution and relative radius specified.
-    /// The relative radius should be ]0, 1]
-    pub fn with_relative_radius(relative: F, poisson_type: Type) -> Self {
-        assert!(relative >= F::cast(0));
-        assert!(relative <= F::cast(1));
-        Builder {
-            radius: relative *
-                    NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
-            poisson_type: poisson_type,
-            _marker: PhantomData,
+    /// Confirms that the radius has not been set before.
+    /// Sets the error accordingly otherwise.
+    fn set_radius(&mut self, radius: F) {
+        if self.radius.is_some() {
+            self.error = Some(ConfigurationError::RadiusMultiplyDefined);
+        } else {
+            self.radius = Some(radius);
         }
     }
 
-    /// New Builder with type of distribution, approximate amount of samples and relative radius specified.
+    /// Confirms that the Poisson type has not been set before.
+    /// Sets the error accordingly otherwise.
+    fn set_poisson_type(&mut self, pt: Type) {
+        if self.poisson_type.is_some() {
+            self.error = Some(ConfigurationError::PoissonTypeMultiplyDefined);
+        } else {
+            self.poisson_type = Some(pt);
+        }
+    }
+
+    /// Configures the Builder to a specific radius.
+    /// The radius must be ]0, √2 / 2]
+    pub fn with_radius(mut self, radius: F) -> Self {
+        if F::cast(0) >= radius || radius > NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work.") {
+            self.error = Some(ConfigurationError::RadiusInvalid);
+        }
+        self.set_radius(radius);
+        self
+    }
+
+    /// Configures the Builder to use the specified relative radius.
+    /// The relative radius must be ]0, 1]
+    pub fn with_relative_radius(mut self, relative: F) -> Self {
+        if relative < F::cast(0) || relative > F::cast(1) {
+            self.error = Some(ConfigurationError::RadiusInvalid);
+        }
+        self.set_radius(relative * NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
+        self
+    }
+
+    /// Configure the Builder with an approximate amount of samples and a relative radius.
     /// The amount of samples should be larger than 0.
     /// The relative radius should be [0, 1].
     /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
-    pub fn with_samples(samples: usize, relative: F, poisson_type: Type) -> Self {
-        Builder {
-            radius: calc_radius::<F, V>(samples, relative, poisson_type),
-            poisson_type: poisson_type,
-            _marker: PhantomData,
+    /// Call this function only after setting the Poisson type.
+    pub fn with_samples(mut self, samples: usize, relative: F) -> Self {
+        match self.poisson_type {
+            Some(poisson_type) => {
+                match calc_radius::<F, V>(samples, relative, poisson_type) {
+                    Ok(radius) => self.set_radius(radius),
+                    Err(err) => self.error = Some(err),
+                }
+            }
+            None => {
+                self.error = Some(ConfigurationError::PoissonTypeUnknownAtRadiusCalculation);
+            }
         }
+        self
+    }
+
+    /// Configure the Builder to use the specified Poisson type.
+    pub fn with_poisson_type(mut self, poisson_type: Type) -> Self {
+        self.set_poisson_type(poisson_type);
+        self
     }
 
     /// Returns the radius of the generator.
-    pub fn radius(&self) -> F {
+    pub fn radius(&self) -> Option<F> {
         self.radius
     }
 
     /// Returns the type of the generator.
-    pub fn poisson_type(&self) -> Type {
+    pub fn poisson_type(&self) -> Option<Type> {
         self.poisson_type
     }
 
+    /// Returns the error about the configuration, if any.
+    pub fn error(&self) -> Result<(),ConfigurationError> {
+        match self.error {
+            Some(err) => Err(err),
+            None => Ok(()),
+        }
+    }
+
     /// Builds generator with random number generator and algorithm specified.
-    pub fn build<R, A>(self, rng: R, _algo: A) -> Generator<F, V, R, A>
+    pub fn build<R, A>(self, rng: R, _algo: A) -> Result<Generator<F, V, R, A>,ConfigurationError>
         where R: Rng,
               A: Creator<F, V>
     {
-        Generator::new(self, rng)
+        try!(self.error());
+        let config = PoissonConfiguration {
+            radius: try!(self.radius.ok_or(ConfigurationError::RadiusUnspecified)),
+            poisson_type: try!(self.poisson_type.ok_or(ConfigurationError::PoissonTypeUnspecified)),
+            _marker: PhantomData,
+        };
+        Ok(Generator::new(config, rng))
     }
 }
 
@@ -172,7 +248,7 @@ pub struct Generator<F, V, R, A>
           R: Rng,
           A: Creator<F, V>
 {
-    poisson: Builder<F, V>,
+    poisson: PoissonConfiguration<F, V>,
     rng: R,
     _algo: PhantomData<A>,
 }
@@ -183,7 +259,7 @@ impl<F, V, R, A> Generator<F, V, R, A>
           R: Rng,
           A: Creator<F, V>
 {
-    fn new(poisson: Builder<F, V>, rng: R) -> Self {
+    fn new(poisson: PoissonConfiguration<F, V>, rng: R) -> Self {
         Generator {
             rng: rng,
             poisson: poisson,
@@ -248,7 +324,7 @@ pub struct PoissonIter<F, V, R, A>
           R: Rng,
           A: Algorithm<F, V>
 {
-    poisson: Builder<F, V>,
+    poisson: PoissonConfiguration<F, V>,
     rng: R,
     algo: A,
 }
