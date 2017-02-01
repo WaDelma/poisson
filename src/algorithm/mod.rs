@@ -1,6 +1,6 @@
 //! Module that contains traits that describe poisson-disk distribution generating algorithms.
 
-use {Builder, Vector, Float};
+use {PoissonConfiguration, Vector, Float};
 
 use rand::Rng;
 
@@ -20,7 +20,7 @@ pub trait Creator<F, V>: Copy + Debug
     type Algo: Algorithm<F, V>;
 
     /// Creates new algorithm.
-    fn create(&Builder<F, V>) -> Self::Algo;
+    fn create(&PoissonConfiguration<F, V>) -> Self::Algo;
 }
 
 /// Trait that describes what poisson-disk distribution generating algorithm needs.
@@ -28,15 +28,15 @@ pub trait Algorithm<F, V>
     where F: Float,
           V: Vector<F>,
 {
-    /// Advances algorithm based on Builder and Rng.
-    fn next<R>(&mut self, &mut Builder<F, V>, &mut R) -> Option<V> where R: Rng;
+    /// Advances algorithm based on PoissonConfiguration and Rng.
+    fn next<R>(&mut self, &mut PoissonConfiguration<F, V>, &mut R) -> Option<V> where R: Rng;
 
-    /// Return lower and upper bound of samples remaining for algorithm to generate based on Builder.
-    fn size_hint(&self, &Builder<F, V>) -> (usize, Option<usize>);
+    /// Return lower and upper bound of samples remaining for algorithm to generate based on PoissonConfiguration.
+    fn size_hint(&self, &PoissonConfiguration<F, V>) -> (usize, Option<usize>);
 
     /// Restricts the algorithm with arbitary sample.
     fn restrict(&mut self, V);
 
-    /// Checks if sample is valid based on Builder.
-    fn stays_legal(&self, &Builder<F, V>, V) -> bool;
+    /// Checks if sample is valid based on PoissonConfiguration.
+    fn stays_legal(&self, &PoissonConfiguration<F, V>, V) -> bool;
 }

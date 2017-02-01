@@ -1,4 +1,4 @@
-use {Builder, Vector, Float};
+use {PoissonConfiguration, Vector, Float};
 use algorithm::{Creator, Algorithm};
 use utils::*;
 
@@ -19,7 +19,7 @@ impl<F, V> Creator<F, V> for Ebeida
 {
     type Algo = Algo<F, V>;
 
-    fn create(poisson: &Builder<F, V>) -> Self::Algo {
+    fn create(poisson: &PoissonConfiguration<F, V>) -> Self::Algo {
         let dim = V::dim(None);
         let grid = Grid::new(poisson.radius, poisson.poisson_type);
         let mut indices = Vec::with_capacity(grid.cells() * dim);
@@ -70,7 +70,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
     where F: Float,
           V: Vector<F>
 {
-    fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
+    fn next<R>(&mut self, poisson: &mut PoissonConfiguration<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
         if self.indices.is_empty() {
@@ -136,7 +136,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         }
     }
 
-    fn size_hint(&self, poisson: &Builder<F, V>) -> (usize, Option<usize>) {
+    fn size_hint(&self, poisson: &PoissonConfiguration<F, V>) -> (usize, Option<usize>) {
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dim(None);
@@ -167,7 +167,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         }
     }
 
-    fn stays_legal(&self, poisson: &Builder<F, V>, sample: V) -> bool {
+    fn stays_legal(&self, poisson: &PoissonConfiguration<F, V>, sample: V) -> bool {
         let index = sample_to_index(&sample, self.grid.side());
         is_disk_free(&self.grid, poisson, index, 0, sample.clone(), &self.outside)
     }
@@ -177,7 +177,7 @@ impl<F, V> Algo<F, V>
     where F: Float,
           V: Vector<F>
 {
-    fn subdivide(&mut self, poisson: &Builder<F, V>) {
+    fn subdivide(&mut self, poisson: &PoissonConfiguration<F, V>) {
         let choices = &[0, 1];
         let (grid, outside, level) = (&self.grid, &self.outside, self.level);
         self.indices.flat_map_inplace(|i| {
@@ -189,7 +189,7 @@ impl<F, V> Algo<F, V>
 }
 
 fn covered<F, V>(grid: &Grid<F, V>,
-                 poisson: &Builder<F, V>,
+                 poisson: &PoissonConfiguration<F, V>,
                  outside: &[V],
                  index: V,
                  level: usize)

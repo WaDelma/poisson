@@ -1,4 +1,4 @@
-use {Type, Vector, Float};
+use {Type, Vector, Float, ConfigurationError};
 
 use num::NumCast;
 
@@ -74,20 +74,25 @@ fn newton(samples: usize, dim: usize) -> usize {
 /// The amount of samples should be larger than 0.
 /// The relative radius should be [0, 1].
 /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
-pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: Type) -> F
+pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: Type) -> Result<F,ConfigurationError>
     where F: Float,
           V: Vector<F>
 {
     use Type::*;
-    assert!(Type::Perioditic == poisson_type || V::dim(None) < 5);
-    assert!(samples > 0);
-    assert!(relative >= F::cast(0));
-    assert!(relative <= F::cast(1));
+    if !(Type::Perioditic == poisson_type || V::dim(None) < 5) {
+        return Err(ConfigurationError::SampleApproximationUnsupported);
+    }
+    if samples == 0 {
+        return Err(ConfigurationError::SampleCountInvalid);
+    }
+    if relative < F::cast(0) || relative > F::cast(1) {
+        return Err(ConfigurationError::RadiusInvalid);
+    }
     let dim = V::dim(None);
     let samples = match poisson_type {
         Perioditic => samples,
         Normal => newton(samples, dim),
     };
     let max_radii: F = NumCast::from(MAX_RADII[dim - 2]).unwrap();
-    (max_radii / F::cast(samples)).powf(F::cast(1) / F::cast(dim)) * relative
+    Ok((max_radii / F::cast(samples)).powf(F::cast(1) / F::cast(dim)) * relative)
 }
