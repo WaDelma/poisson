@@ -2,9 +2,9 @@
 
 use {Builder, Type, Vector, Float};
 
-use num::NumCast;
+use num_traits::NumCast;
 
-use rand::{Rand, Rng};
+use rand::Rng;
 
 use modulo::Mod;
 
@@ -15,7 +15,7 @@ pub mod math;
 #[derive(Clone)]
 pub struct Grid<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     data: Vec<Vec<V>>,
     side: usize,
@@ -26,10 +26,10 @@ pub struct Grid<F, V>
 
 impl<F, V> Grid<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     pub fn new(radius: F, poisson_type: Type) -> Grid<F, V> {
-        let dim = F::cast(V::dim(None));
+        let dim = F::cast(V::dimension());
         let cell = (F::cast(2) * radius) / dim.sqrt();
         let side = (F::cast(1) / cell)
                        .to_usize()
@@ -66,11 +66,12 @@ impl<F, V> Grid<F, V>
 
 pub fn encode<F, V>(v: &V, side: usize, poisson_type: Type) -> Option<usize>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     use Type::*;
     let mut index = 0;
-    for &n in v.iter() {
+    for n in 0..V::dimension() {
+        let n = v[n];
         let cur = match poisson_type {
             Perioditic => {
                 n.to_isize()
@@ -94,18 +95,17 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: Type) -> Option<usize>
 
 pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
-    use num::Zero;
-    let dim = V::dim(None);
+    let dim = V::dimension();
     if index >= side.pow(dim as u32) {
         return None;
     }
     let mut result = V::zero();
     let mut last = index;
-    for n in result.iter_mut().rev() {
+    for n in (0..V::dimension()).rev() {
         let cur = last / side;
-        *n = F::cast(last - cur * side);
+        result[n] = F::cast(last - cur * side);
         last = cur;
     }
     Some(result)
@@ -113,29 +113,33 @@ pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
 
 #[test]
 fn encoding_decoding_works() {
-    let n = ::na::Vec2::new(10., 7.);
+    extern crate nalgebra;
+    let n = nalgebra::Vector2::new(10., 7.);
     assert_eq!(n,
                decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_decoding_at_edge_works() {
-    let n = ::na::Vec2::new(14., 14.);
+    extern crate nalgebra;
+    let n = nalgebra::Vector2::new(14., 14.);
     assert_eq!(n,
                decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap());
 }
 
 #[test]
 fn encoding_outside_of_area_fails() {
-    let n = ::na::Vec2::new(9., 7.);
+    extern crate nalgebra;
+    let n = nalgebra::Vector2::new(9., 7.);
     assert_eq!(None, encode(&n, 9, Type::Normal));
-    let n = ::na::Vec2::new(7., 9.);
+    let n = nalgebra::Vector2::new(7., 9.);
     assert_eq!(None, encode(&n, 9, Type::Normal));
 }
 
 #[test]
 fn decoding_outside_of_area_fails() {
-    assert_eq!(None, decode::<f64, ::na::Vec2<_>>(100, 10));
+    extern crate nalgebra;
+    assert_eq!(None, decode::<f64, nalgebra::Vector2<_>>(100, 10));
 }
 
 pub fn choose_random_sample<F, V, R>(rng: &mut R, grid: &Grid<F, V>, index: V, level: usize) -> V
@@ -150,14 +154,14 @@ pub fn choose_random_sample<F, V, R>(rng: &mut R, grid: &Grid<F, V>, index: V, l
 
 #[test]
 fn random_point_is_between_right_values_top_lvl() {
-    use num::Zero;
+    extern crate nalgebra;
+    use num_traits::Zero;
     use rand::{SeedableRng, XorShiftRng};
-    use na::Vec2;
     let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let radius = 0.2;
-    let grid = Grid::<f64, ::na::Vec2<_>>::new(radius, Type::Normal);
+    let grid = Grid::<f64, nalgebra::Vector2<_>>::new(radius, Type::Normal);
     for _ in 0..1000 {
-        let result = choose_random_sample(&mut rand, &grid, Vec2::<f64>::zero(), 0);
+        let result = choose_random_sample(&mut rand, &grid, nalgebra::Vector2::<f64>::zero(), 0);
         assert!(result.x >= 0.);
         assert!(result.x < grid.cell);
         assert!(result.y >= 0.);
@@ -167,22 +171,22 @@ fn random_point_is_between_right_values_top_lvl() {
 
 pub fn sample_to_index<F, V>(value: &V, side: usize) -> V
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     let mut cur = value.clone();
-    for c in cur.iter_mut() {
-        *c = (*c * F::cast(side)).floor();
+    for n in 0..V::dimension() {
+        cur[n] = (cur[n] * F::cast(side)).floor();
     }
     cur
 }
 
 pub fn index_to_sample<F, V>(value: &V, side: usize) -> V
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     let mut cur = value.clone();
-    for c in cur.iter_mut() {
-        *c = *c / F::cast(side);
+    for n in 0..V::dimension() {
+        cur[n] = cur[n] / F::cast(side);
     }
     cur
 }
@@ -195,7 +199,7 @@ pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
                           outside: &[V])
                           -> bool
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     let parent = get_parent(index, level);
     let sqradius = (F::cast(2) * poisson.radius).powi(2);
@@ -209,7 +213,7 @@ pub fn is_disk_free<F, V>(grid: &Grid<F, V>,
 
 pub fn is_valid<F, V>(poisson: &Builder<F, V>, samples: &[V], sample: V) -> bool
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     let sqradius = (F::cast(2) * poisson.radius).powi(2);
     samples.iter()
@@ -219,45 +223,46 @@ pub fn is_valid<F, V>(poisson: &Builder<F, V>, samples: &[V], sample: V) -> bool
 
 pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: Type) -> F
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     use Type::*;
     let diff = v2 - v1;
     match poisson_type {
         Perioditic => {
             each_combination(&[-1, 0, 1])
-                .map(|v| (diff.clone() + v).sqnorm())
+                .map(|v| (diff.clone() + v).norm_squared())
                 .fold(F::max_value(), |a, b| a.min(b))
         }
-        Normal => diff.sqnorm(),
+        Normal => diff.norm_squared(),
     }
 }
 
 pub fn get_parent<F, V>(mut index: V, level: usize) -> V
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     let split = 2usize.pow(level as u32);
-    for n in index.iter_mut() {
-        *n = (*n / F::cast(split)).floor();
+    for n in 0..V::dimension() {
+        index[n] = (index[n] / F::cast(split)).floor();
     }
     index
 }
 
 #[test]
 fn getting_parent_works() {
+    extern crate nalgebra;
     let divides = 4;
     let cells_per_cell = 2usize.pow(divides as u32);
-    let testee = ::na::Vec2::new(1., 2.);
+    let testee = nalgebra::Vector2::new(1., 2.);
     assert_eq!(testee,
-               get_parent((testee * cells_per_cell as f64) + ::na::Vec2::new(0., 15.),
+               get_parent((testee * cells_per_cell as f64) + nalgebra::Vector2::new(0., 15.),
                           divides));
 }
 
 pub struct CombiIter<'a, F, FF, V>
     where F: Float,
           FF: NumCast + 'a,
-          V: Vector<F>
+          V: Vector<F>,
 {
     cur: usize,
     choices: &'a [FF],
@@ -267,11 +272,11 @@ pub struct CombiIter<'a, F, FF, V>
 impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
     where F: Float,
           FF: NumCast + Clone,
-          V: Vector<F>
+          V: Vector<F>,
 {
     type Item = V;
     fn next(&mut self) -> Option<Self::Item> {
-        let dim = V::dim(None);
+        let dim = V::dimension();
         let len = self.choices.len();
         if self.cur >= len.pow(dim as u32) {
             None
@@ -279,11 +284,11 @@ impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
             let mut result = V::zero();
             let mut div = self.cur;
             self.cur += 1;
-            for n in result.iter_mut() {
+            for n in 0..V::dimension() {
                 let rem = div % len;
                 div /= len;
                 let choice = self.choices[rem as usize].clone();
-                *n = NumCast::from(choice)
+                result[n] = NumCast::from(choice)
                          .expect("Expected that all choices were castable to float without \
                                   problems.");
             }
@@ -296,7 +301,7 @@ impl<'a, F, FF, V> Iterator for CombiIter<'a, F, FF, V>
 pub fn each_combination<'a, F, FF, V>(choices: &[FF]) -> CombiIter<F, FF, V>
     where F: Float + 'a,
           FF: NumCast,
-          V: Vector<F>
+          V: Vector<F>,
 {
     CombiIter {
         cur: 0,

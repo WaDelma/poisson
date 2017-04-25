@@ -3,19 +3,21 @@ use poisson::{Type, Builder, Vector, Float, algorithm};
 
 use rand::{SeedableRng, XorShiftRng};
 
-extern crate num;
-use self::num::NumCast;
+extern crate num_traits;
+use self::num_traits::NumCast;
 
-use na::Norm;
+extern crate alga;
+use self::alga::general::AbstractField;
+use self::alga::linear::{NormedSpace, FiniteDimVectorSpace};
 
 use std::fmt::Debug;
 
 pub fn print_v<F: Float, V: Vector<F>>(v: V) -> String {
     let mut result = "(".to_owned();
-    for i in v.iter() {
-        result.push_str(&format!("{}, ", i.to_f64().unwrap()));
+    for i in 0..V::dimension() {
+        result.push_str(&format!("{}, ", v[i].to_f64().unwrap()));
     }
-    if V::dim(None) != 0 {
+    if V::dimension() != 0 {
         result.pop();
     }
     result.push(')');
@@ -89,7 +91,7 @@ pub fn test_poisson<F, I, T, A>(poisson: I, radius: F, poisson_type: Type, algo:
     where I: Iterator<Item=T>, F: Float, T: Debug + Vector<F> + Copy, A: algorithm::Creator<F, T>
 {
     use poisson::Type::*;
-    let dim = T::dim(None);
+    let dim = T::dimension();
     let mut vecs = vec![];
     let mut hints = vec![];
     {
@@ -116,10 +118,10 @@ pub fn test_poisson<F, I, T, A>(poisson: I, radius: F, poisson_type: Type, algo:
             for n in 0..3i64.pow(dim as u32) {
                 let mut t = T::zero();
                 let mut div = n;
-                for i in t.iter_mut() {
+                for i in 0..T::dimension() {
                     let rem = div % 3;
                     div /= 3;
-                    *i = NumCast::from(rem - 1).unwrap();
+                    t[i] = NumCast::from(rem - 1).unwrap();
                 }
                 for v in &vecs {
                     vecs2.push(*v + t);

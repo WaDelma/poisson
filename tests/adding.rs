@@ -7,10 +7,9 @@ use rand::{SeedableRng, XorShiftRng};
 extern crate sphere;
 
 extern crate nalgebra as na;
-use na::Iterable;
-pub type Vect = na::Vec2<f64>;
+pub type Vect = na::Vector2<f64>;
 
-extern crate num;
+extern crate num_traits;
 
 use std::iter::repeat;
 

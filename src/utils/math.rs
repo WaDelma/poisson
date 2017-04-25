@@ -1,8 +1,6 @@
 use {Type, Vector, Float};
 
-use num::NumCast;
-
-use na::Dim;
+use num_traits::NumCast;
 
 // const TAU: f64
 //     = 6.283185307179586476925286766559005768394338798750211641949;
@@ -76,14 +74,15 @@ fn newton(samples: usize, dim: usize) -> usize {
 /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
 pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: Type) -> F
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     use Type::*;
-    assert!(Type::Perioditic == poisson_type || V::dim(None) < 5);
+    assert!(Type::Perioditic == poisson_type || V::dimension() < 5);
     assert!(samples > 0);
     assert!(relative >= F::cast(0));
     assert!(relative <= F::cast(1));
-    let dim = V::dim(None);
+    let dim = V::dimension();
     let samples = match poisson_type {
         Perioditic => samples,
         Normal => newton(samples, dim),

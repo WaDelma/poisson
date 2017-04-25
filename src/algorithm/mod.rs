@@ -16,6 +16,7 @@ mod ebeida;
 pub trait Creator<F, V>: Copy + Debug
     where F: Float,
           V: Vector<F>,
+
 {
     type Algo: Algorithm<F, V>;
 
@@ -27,6 +28,7 @@ pub trait Creator<F, V>: Copy + Debug
 pub trait Algorithm<F, V>
     where F: Float,
           V: Vector<F>,
+
 {
     /// Advances algorithm based on Builder and Rng.
     fn next<R>(&mut self, &mut Builder<F, V>, &mut R) -> Option<V> where R: Rng;
