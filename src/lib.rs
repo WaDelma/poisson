@@ -15,7 +15,7 @@
 //! extern crate rand;
 //!
 //! extern crate nalgebra as na;
-//! type Vec2 = na::Vec2<f64>;
+//! type Vec2 = na::Vector2<f64>;
 //!
 //! fn main() {
 //!     let poisson =
@@ -32,16 +32,19 @@ extern crate sphere;
 extern crate rand;
 use rand::{Rand, Rng};
 
-extern crate num;
-use num::NumCast;
+extern crate num_traits;
+use num_traits::{NumCast, Zero};
+use num_traits::Float as NumFloat;
 
-extern crate nalgebra as na;
-use na::{FloatVec, BaseFloat, Iterable, IterableMut};
+extern crate alga;
+use alga::general::AbstractField;
+use alga::linear::{NormedSpace, FiniteDimVectorSpace};
 
 #[macro_use]
 extern crate lazy_static;
 
 use std::marker::PhantomData;
+use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
 
 use algorithm::{Creator, Algorithm};
 use utils::math::calc_radius;
@@ -51,7 +54,12 @@ mod utils;
 
 /// Describes what floats are.
 pub trait Float:
-    BaseFloat +
+    NumFloat +
+    AbstractField +
+    AddAssign +
+    SubAssign +
+    MulAssign +
+    DivAssign +
     Rand
 {
     /// Casts usize to float.
@@ -59,21 +67,23 @@ pub trait Float:
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> Float for T where T: BaseFloat + Rand
+impl<T> Float for T where T: NumFloat + AbstractField + AddAssign + SubAssign + MulAssign + DivAssign + Rand
 {}
 
 /// Describes what vectors are.
 pub trait Vector<F>:
-    FloatVec<F> +
-    IterableMut<F> +
-    Iterable<F> +
+    Zero +
     Rand +
+    FiniteDimVectorSpace<Field=F> +
+    NormedSpace<Field=F> +
+    Index<usize> +
+    IndexMut<usize> +
     Clone
-    where F: Float
+      where F: Float,
 {}
 impl<T, F> Vector<F> for T
     where F: Float,
-          T: FloatVec<F> + IterableMut<F> + Iterable<F> + Rand + Clone
+          T: Zero + Rand + FiniteDimVectorSpace<Field=F> + NormedSpace<Field=F> + Clone,
 {}
 
 /// Enum for determining the type of poisson-disk distribution.
@@ -96,7 +106,7 @@ impl Default for Type {
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct Builder<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     radius: F,
     poisson_type: Type,
@@ -105,7 +115,7 @@ pub struct Builder<F, V>
 
 impl<V, F> Builder<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
 {
     /// New Builder with type of distribution and radius specified.
     /// The radius should be ]0, √2 / 2]
@@ -170,7 +180,7 @@ pub struct Generator<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng,
-          A: Creator<F, V>
+          A: Creator<F, V>,
 {
     poisson: Builder<F, V>,
     rng: R,
@@ -181,7 +191,7 @@ impl<F, V, R, A> Generator<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng,
-          A: Creator<F, V>
+          A: Creator<F, V>,
 {
     fn new(poisson: Builder<F, V>, rng: R) -> Self {
         Generator {
@@ -214,7 +224,7 @@ impl<F, V, R, A> Generator<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng + Clone,
-          A: Creator<F, V>
+          A: Creator<F, V>,
 {
     /// Generates Poisson-disk distribution.
     pub fn generate(&self) -> Vec<V> {
@@ -226,7 +236,7 @@ impl<F, V, R, A> IntoIterator for Generator<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng,
-          A: Creator<F, V>
+          A: Creator<F, V>,
 {
     type IntoIter = PoissonIter<F, V, R, A::Algo>;
     type Item = V;
@@ -246,7 +256,7 @@ pub struct PoissonIter<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng,
-          A: Algorithm<F, V>
+          A: Algorithm<F, V>,
 {
     poisson: Builder<F, V>,
     rng: R,
@@ -257,7 +267,7 @@ impl<F, V, R, A> Iterator for PoissonIter<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng,
-          A: Algorithm<F, V>
+          A: Algorithm<F, V>,
 {
     type Item = V;
 
@@ -274,7 +284,7 @@ impl<F, V, R, A> PoissonIter<F, V, R, A>
     where F: Float,
           V: Vector<F>,
           R: Rng,
-          A: Algorithm<F, V>
+          A: Algorithm<F, V>,
 {
     /// Returns the radius of the generator.
     pub fn radius(&self) -> F {

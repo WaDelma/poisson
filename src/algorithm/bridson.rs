@@ -2,7 +2,7 @@ use {Builder, Vector, Float};
 use algorithm::{Creator, Algorithm};
 use utils::*;
 
-use num::NumCast;
+use num_traits::NumCast;
 
 use rand::{Rand, Rng};
 use rand::distributions::range::Range;
@@ -18,7 +18,8 @@ pub struct Bridson;
 
 impl<F, V> Creator<F, V> for Bridson
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     type Algo = Algo<F, V>;
 
@@ -34,7 +35,8 @@ impl<F, V> Creator<F, V> for Bridson
 
 pub struct Algo<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     grid: Grid<F, V>,
     active_samples: Vec<V>,
@@ -44,7 +46,8 @@ pub struct Algo<F, V>
 
 impl<F, V> Algorithm<F, V> for Algo<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
@@ -56,7 +59,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
                 let min = F::cast(2) * poisson.radius;
                 let max = F::cast(4) * poisson.radius;
                 let sample = cur.clone() + random_point_annulus(rng, min, max);
-                if sample.iter().all(|&c| F::cast(0) <= c && c <= F::cast(1)) {
+                if (0..V::dimension()).map(|n| sample[n]).all(|c| F::cast(0) <= c && c <= F::cast(1)) {
                     let index = sample_to_index(&sample, self.grid.side());
                     if self.insert_if_valid(poisson, index, sample.clone()) {
                         return Some(sample);
@@ -87,7 +90,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         };
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
-        let dim = V::dim(None);
+        let dim = V::dimension();
         let spacing = self.grid.cell();
         let grid_volume = F::cast(upper) * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(F::cast(2) * poisson.radius, dim as u64);
@@ -120,7 +123,8 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
 
 impl<F, V> Algo<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     fn insert_if_valid(&mut self, poisson: &mut Builder<F, V>, index: V, sample: V) -> bool {
         if is_disk_free(&self.grid,
@@ -149,8 +153,8 @@ fn random_point_annulus<F, V, R>(rand: &mut R, min: F, max: F) -> V
 {
     loop {
         let mut result = V::zero();
-        for c in result.iter_mut() {
-            *c = NumCast::from(StandardNormal::rand(rand).0)
+        for n in 0..V::dimension() {
+            result[n] = NumCast::from(StandardNormal::rand(rand).0)
                      .expect("The f64 produced by StandardNormal should be always castable to \
                               float.");
         }

@@ -8,11 +8,13 @@ use rand::distributions::normal::StandardNormal;
 extern crate sphere;
 
 extern crate nalgebra as na;
-use na::{Norm, IterableMut};
-pub type Vect = na::Vec2<f64>;
+pub type Vect = na::Vector2<f64>;
 
-extern crate num;
-use num::Zero;
+extern crate alga;
+use self::alga::linear::FiniteDimVectorSpace;
+
+extern crate num_traits;
+use num_traits::Zero;
 
 use helper::When::*;
 
@@ -44,8 +46,8 @@ fn multiple_too_close_invalid() {
 
 pub fn sphere_uniform_point<R: Rng>(rng: &mut R) -> Vect {
     let mut result = Vect::zero();
-    for c in result.iter_mut() {
-        *c = StandardNormal::rand(rng).0;
+    for c in 0..Vect::dimension() {
+        result[c] = StandardNormal::rand(rng).0;
     }
     result.normalize()
 }

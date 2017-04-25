@@ -15,12 +15,13 @@ pub struct Ebeida;
 
 impl<F, V> Creator<F, V> for Ebeida
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     type Algo = Algo<F, V>;
 
     fn create(poisson: &Builder<F, V>) -> Self::Algo {
-        let dim = V::dim(None);
+        let dim = V::dimension();
         let grid = Grid::new(poisson.radius, poisson.poisson_type);
         let mut indices = Vec::with_capacity(grid.cells() * dim);
         let choices = (0..grid.side()).collect::<Vec<_>>();
@@ -53,7 +54,8 @@ impl<F, V> Creator<F, V> for Ebeida
 
 pub struct Algo<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     grid: Grid<F, V>,
     indices: Vec<V>,
@@ -68,7 +70,8 @@ pub struct Algo<F, V>
 
 impl<F, V> Algorithm<F, V> for Algo<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
@@ -139,7 +142,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
     fn size_hint(&self, poisson: &Builder<F, V>) -> (usize, Option<usize>) {
         // Calculating lower bound should work because we calculate how much volume is left to be filled at worst case and
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
-        let dim = V::dim(None);
+        let dim = V::dimension();
         let side = 2usize.pow(self.level as u32);
         let spacing = self.grid.cell() / F::cast(side);
         let grid_volume = F::cast(self.indices.len()) * spacing.powi(dim as i32);
@@ -175,7 +178,8 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
 
 impl<F, V> Algo<F, V>
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     fn subdivide(&mut self, poisson: &Builder<F, V>) {
         let choices = &[0, 1];
@@ -195,7 +199,8 @@ fn covered<F, V>(grid: &Grid<F, V>,
                  level: usize)
                  -> bool
     where F: Float,
-          V: Vector<F>
+          V: Vector<F>,
+
 {
     // TODO: This does 4^d checking of points even though it could be done 3^d
     let side = 2usize.pow(level as u32);

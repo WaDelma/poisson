@@ -4,7 +4,7 @@ use poisson::{Type, Builder};
 extern crate rand;
 
 extern crate nalgebra as na;
-use na::Vec2 as naVec2;
+use na::Vector2 as naVec2;
 pub type Vec2 = naVec2<f64>;
 
 #[test]

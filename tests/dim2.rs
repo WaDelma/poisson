@@ -8,7 +8,7 @@ use rand::{XorShiftRng, SeedableRng};
 extern crate sphere;
 
 extern crate nalgebra as na;
-pub type Vect = na::Vec2<f64>;
+pub type Vect = na::Vector2<f64>;
 
 mod helper;
 use helper::test_with_samples;
