@@ -83,7 +83,7 @@ pub trait Vector<F>:
 {}
 impl<T, F> Vector<F> for T
     where F: Float,
-          T: Zero + Rand + FiniteDimVectorSpace<Field=F> + NormedSpace<Field=F> + Clone,
+          T: Zero + Rand + FiniteDimVectorSpace<Field=F> + NormedSpace<Field=F> + Index<usize> + IndexMut<usize> + Clone,
 {}
 
 /// Enum for determining the type of poisson-disk distribution.
