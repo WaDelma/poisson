@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `poisson` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, poisson">
+
+    <title>poisson - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'>Crate poisson</p><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'poisson', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>poisson</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/poisson/lib.rs.html#1-333' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'>
+<h1 id='poisson-disk-distribution-generation' class='section-header'><a href='#poisson-disk-distribution-generation'>Poisson-disk distribution generation</a></h1>
+<p>Generates distribution of points in [0, 1]<sup>d</sup> where:</p>
+
+<ul>
+<li>For each point there is disk of certain radius which doesn&#39;t intersect
+with any other disk of other points</li>
+<li>Samples fill the space uniformly</li>
+</ul>
+
+<p>Due it&#39;s blue noise properties Poisson-disk distribution
+can be used for object placement in procedural texture/world generation,
+as source distribution for digital stipling,
+as distribution for sampling in rendering or for (re)meshing.</p>
+
+<h1 id='examples' class='section-header'><a href='#examples'>Examples</a></h1>
+<p>Generate non-tiling poisson-disk distribution in [0, 1]<sup>2</sup> with disk radius 0.1
+using slower but more accurate algorithm.</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">poisson</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">rand</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">nalgebra</span> <span class="kw">as</span> <span class="ident">na</span>;
+
+<span class="kw">use</span> <span class="ident">poisson</span>::{<span class="ident">Builder</span>, <span class="ident">Type</span>, <span class="ident">algorithm</span>};
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="kw">let</span> <span class="ident">poisson</span> <span class="op">=</span>
+        <span class="ident">Builder</span>::<span class="op">&lt;</span>_, <span class="ident">na</span>::<span class="ident">Vector2</span><span class="op">&lt;</span><span class="ident">f64</span><span class="op">&gt;&gt;</span>::<span class="ident">with_radius</span>(<span class="number">0.1</span>, <span class="ident">Type</span>::<span class="ident">Normal</span>)
+            .<span class="ident">build</span>(<span class="ident">rand</span>::<span class="ident">weak_rng</span>(), <span class="ident">algorithm</span>::<span class="ident">Ebeida</span>);
+    <span class="kw">let</span> <span class="ident">samples</span> <span class="op">=</span> <span class="ident">poisson</span>.<span class="ident">generate</span>();
+    <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">samples</span>);
+}</pre>
+
+<p>Generate tiling poisson-disk distribution in [0, 1]<sup>3</sup> with approximately 100 samples
+and relative disk radius 0.9 using faster but less accurate algorithm.</p>
+
+<pre class="rust rust-example-rendered">
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="kw">let</span> <span class="ident">poisson</span> <span class="op">=</span>
+        <span class="ident">Builder</span>::<span class="op">&lt;</span>_, <span class="ident">na</span>::<span class="ident">Vector3</span><span class="op">&lt;</span><span class="ident">f32</span><span class="op">&gt;&gt;</span>::<span class="ident">with_samples</span>(<span class="number">100</span>, <span class="number">0.9</span>, <span class="ident">Type</span>::<span class="ident">Perioditic</span>)
+            .<span class="ident">build</span>(<span class="ident">rand</span>::<span class="ident">weak_rng</span>(), <span class="ident">algorithm</span>::<span class="ident">Bridson</span>);
+    <span class="kw">for</span> <span class="ident">sample</span> <span class="kw">in</span> <span class="ident">poisson</span> {
+        <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">sample</span>)
+    }
+}</pre>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="algorithm/index.html"
+                                  title='mod poisson::algorithm'>algorithm</a></td>
+                           <td class='docblock-short'>
+                                <p>Module that contains traits that describe poisson-disk distribution generating algorithms.</p>
+                           </td>
+                       </tr></table><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Builder.html"
+                                  title='struct poisson::Builder'>Builder</a></td>
+                           <td class='docblock-short'>
+                                <p>Builder for the generator.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Generator.html"
+                                  title='struct poisson::Generator'>Generator</a></td>
+                           <td class='docblock-short'>
+                                <p>Generates poisson-disk distribution in [0, 1]<sup>d</sup> area.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.PoissonIter.html"
+                                  title='struct poisson::PoissonIter'>PoissonIter</a></td>
+                           <td class='docblock-short'>
+                                <p>Iterator for generating poisson-disk distribution.</p>
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.Type.html"
+                                  title='enum poisson::Type'>Type</a></td>
+                           <td class='docblock-short'>
+                                <p>Enum for determining the type of poisson-disk distribution.</p>
+                           </td>
+                       </tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Float.html"
+                                  title='trait poisson::Float'>Float</a></td>
+                           <td class='docblock-short'>
+                                <p>Describes what floats are.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="trait" href="trait.Vector.html"
+                                  title='trait poisson::Vector'>Vector</a></td>
+                           <td class='docblock-short'>
+                                <p>Describes what vectors are.</p>
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "poisson";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>
