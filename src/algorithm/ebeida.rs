@@ -52,6 +52,7 @@ impl<F, V> Creator<F, V> for Ebeida
     }
 }
 
+/// Implementation for the Ebeida algorithm
 pub struct Algo<F, V>
     where F: Float,
           V: Vector<F>,

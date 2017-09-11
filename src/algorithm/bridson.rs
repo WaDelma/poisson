@@ -11,7 +11,7 @@ use rand::distributions::normal::StandardNormal;
 
 use sphere::sphere_volume;
 
-/// Generates non-uniform non-maximal Poisson-disk distribution with O(n) time and O(n) space complexity relative to the number of samples generated.
+/// Generates approximately uniform non-maximal Poisson-disk distribution with O(n) time and O(n) space complexity relative to the number of samples generated.
 /// Based on Bridson, Robert. "Fast Poisson disk sampling in arbitrary dimensions." SIGGRAPH Sketches. 2007.
 #[derive(Debug, Clone, Copy)]
 pub struct Bridson;
@@ -33,6 +33,7 @@ impl<F, V> Creator<F, V> for Bridson
     }
 }
 
+/// Implementation for the Bridson algorithm
 pub struct Algo<F, V>
     where F: Float,
           V: Vector<F>,
