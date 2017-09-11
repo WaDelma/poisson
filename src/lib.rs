@@ -1,30 +1,55 @@
 //! # Poisson-disk distribution generation
 //!
-//! Generates distribution of points where:
+//! Generates distribution of points in [0, 1]<sup>d</sup> where:
 //!
 //! * For each point there is disk of certain radius which doesn't intersect
 //! with any other disk of other points
 //! * Samples fill the space uniformly
 //!
+//! Due it's blue noise properties Poisson-disk distribution
+//! can be used for object placement in procedural texture/world generation,
+//! as source distribution for digital stipling,
+//! as distribution for sampling in rendering or for (re)meshing.
+//!
 //! # Examples
 //!
-//! ```
+//! Generate non-tiling poisson-disk distribution in [0, 1]<sup>2</sup> with disk radius 0.1
+//! using slower but more accurate algorithm.
+//!
+//! ````rust
 //! extern crate poisson;
-//! use poisson::{Builder, Type, algorithm};
-//!
 //! extern crate rand;
-//!
 //! extern crate nalgebra as na;
-//! type Vec2 = na::Vector2<f64>;
+//!
+//! use poisson::{Builder, Type, algorithm};
 //!
 //! fn main() {
 //!     let poisson =
-//!         Builder::<_, Vec2>::with_radius(0.1, Type::Normal)
+//!         Builder::<_, na::Vector2<f64>>::with_radius(0.1, Type::Normal)
 //!             .build(rand::weak_rng(), algorithm::Ebeida);
 //!     let samples = poisson.generate();
 //!     println!("{:?}", samples);
 //! }
-//! ```
+//! ````
+//!
+//! Generate tiling poisson-disk distribution in [0, 1]<sup>3</sup> with approximately 100 samples
+//! and relative disk radius 0.9 using faster but less accurate algorithm.
+//!
+//! ````rust
+//! # extern crate poisson;
+//! # extern crate rand;
+//! # extern crate nalgebra as na;
+//! # use poisson::{Builder, Type, algorithm};
+//!
+//! fn main() {
+//!     let poisson =
+//!         Builder::<_, na::Vector3<f32>>::with_samples(100, 0.9, Type::Perioditic)
+//!             .build(rand::weak_rng(), algorithm::Bridson);
+//!     for sample in poisson {
+//!         println!("{:?}", sample)
+//!     }
+//! }
+//! ````
 extern crate modulo;
 
 extern crate sphere;
@@ -91,8 +116,7 @@ impl<T, F> Vector<F> for T
 pub enum Type {
     /// Acts like there is void all around the space placing no restrictions to sides.
     Normal,
-    /// Makes the space to wrap around on edges allowing tiling of poisson-disk distribution.
-    /// This makes samples next to a edge restrict samples on opposite one.
+    /// Makes the space to wrap around on edges allowing tiling of the generated poisson-disk distribution.
     Perioditic,
 }
 
@@ -147,6 +171,7 @@ impl<V, F> Builder<F, V>
     /// The amount of samples should be larger than 0.
     /// The relative radius should be [0, 1].
     /// For non-perioditic this is supported only for 2, 3 and 4 dimensional generation.
+    /// For perioditic this is supported up to 8 dimensions.
     pub fn with_samples(samples: usize, relative: F, poisson_type: Type) -> Self {
         Builder {
             radius: calc_radius::<F, V>(samples, relative, poisson_type),
@@ -174,7 +199,7 @@ impl<V, F> Builder<F, V>
     }
 }
 
-/// Generates poisson-disk distribution for [0, 1]² area.
+/// Generates poisson-disk distribution in [0, 1]<sup>d</sup> area.
 #[derive(Clone, Debug)]
 pub struct Generator<F, V, R, A>
     where F: Float,

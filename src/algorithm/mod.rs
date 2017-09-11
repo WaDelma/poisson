@@ -12,33 +12,34 @@ pub use self::ebeida::Ebeida;
 mod bridson;
 mod ebeida;
 
-/// Trait for building algorithms.
+/// Constructs new instance of the algorithm.
 pub trait Creator<F, V>: Copy + Debug
     where F: Float,
           V: Vector<F>,
 
 {
+    /// Algorithm instance associated with the trait
     type Algo: Algorithm<F, V>;
 
-    /// Creates new algorithm.
+    /// Creates new and empty algorithm instance.
     fn create(&Builder<F, V>) -> Self::Algo;
 }
 
-/// Trait that describes what poisson-disk distribution generating algorithm needs.
+/// Trait that describes poisson-disk distribution generating algorithm.
 pub trait Algorithm<F, V>
     where F: Float,
           V: Vector<F>,
 
 {
-    /// Advances algorithm based on Builder and Rng.
+    /// Generates new sample advancing the algorithm.
     fn next<R>(&mut self, &mut Builder<F, V>, &mut R) -> Option<V> where R: Rng;
 
-    /// Return lower and upper bound of samples remaining for algorithm to generate based on Builder.
+    /// Returns lower and upper bound of the amount of samples remaining for the algorithm to generate.
     fn size_hint(&self, &Builder<F, V>) -> (usize, Option<usize>);
 
-    /// Restricts the algorithm with arbitary sample.
+    /// Restricts the algorithm with an arbitary sample.
     fn restrict(&mut self, V);
 
-    /// Checks if sample is valid based on Builder.
+    /// Checks if a sample is valid for the poisson-disk distribution generated thus far by the algorithm.
     fn stays_legal(&self, &Builder<F, V>, V) -> bool;
 }
