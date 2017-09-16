@@ -1,14 +1,15 @@
 # poisson
 
-[![Documentation][di]][dl] [![crates.io][ri]][rl] ![MIT][li] [![Build Status][ti]][tl] [![Coverage Status][ci]][cl]   
+[![Documentation][di]][dl] [![Crates.io][ri]][rl] [![License: MIT][li]][ll] [![Build Status][ti]][tl] [![Coverage Status][ci]][cl]   
 
 [di]: https://docs.rs/poisson/badge.svg
 [dl]: https://docs.rs/poisson
 
-[ri]: https://crates.io/crates/poisson
-[rl]: https://img.shields.io/crates/v/poisson.svg
+[ri]: https://img.shields.io/crates/v/poisson.svg
+[rl]: https://crates.io/crates/poisson/
 
-[li]: https://img.shields.io/badge/license-MIT-blue.svg
+[li]: https://img.shields.io/badge/License-MIT-blue.svg
+[ll]: https://opensource.org/licenses/MIT
 
 [ti]: https://travis-ci.org/WaDelma/poisson.svg?branch=master
 [tl]: https://travis-ci.org/WaDelma/poisson
