@@ -1,6 +1,10 @@
 sudo: false
 language: rust
 
+cache:
+  cargo: true
+  apt: true
+
 addons:
   apt:
     packages:
