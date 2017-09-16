@@ -10,7 +10,7 @@ extern crate rand;
 use rand::{SeedableRng, XorShiftRng};
 
 extern crate nalgebra as na;
-pub type Vect = na::Vec2<f64>;
+pub type Vect = na::Vector2<f64>;
 
 #[bench]
 fn bench_ebeida_2d_1_80_normal(b: &mut Bencher) {
