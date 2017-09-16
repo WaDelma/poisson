@@ -16,9 +16,8 @@ matrix:
   allow_failures:
     - rust: nightly
   include:
-    - rust:
-      - stable
-      - beta
+    - rust: stable
+    - rust: beta
     - script:
         - |
             cargo build &&
