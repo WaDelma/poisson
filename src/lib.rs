@@ -6,7 +6,7 @@
 //! with any other disk of other points
 //! * Samples fill the space uniformly
 //!
-//! Due it's blue noise properties Poisson-disk distribution
+//! Due it's blue noise properties poisson-disk distribution
 //! can be used for object placement in procedural texture/world generation,
 //! as source distribution for digital stipling,
 //! as distribution for sampling in rendering or for (re)meshing.
