@@ -21,20 +21,20 @@ matrix:
     - rust: nightly
   include:
     - rust: stable
-    - script:
+      script:
         - |
             cargo build &&
             travis_wait 30 cargo test &&
             cargo doc
   include:
     - rust: beta
-    - script:
+      script:
         - |
             cargo build &&
             travis_wait 30 cargo test
   include:
     - rust: nightly
-    - script:
+      script:
       - |
           cargo build &&
           travis_wait 30 cargo test &&
