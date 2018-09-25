@@ -21,7 +21,7 @@ mod helper;
 fn adding_valid_start_works() {
     let samples = 100;
     let relative_radius = 0.8;
-    let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
+    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let prefiller = |_| {
         let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida)
@@ -36,7 +36,7 @@ fn adding_valid_start_works() {
 fn adding_valid_middle_works() {
     let samples = 100;
     let relative_radius = 0.8;
-    let rand = XorShiftRng::from_seed([1, 1, 2, 3]);
+    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let prefiller = |_| {
         let prefiller = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida);
@@ -90,7 +90,7 @@ fn adding_to_outside_of_edges_start_works() {
 fn completely_filled_works() {
     let samples = 100;
     let relative_radius = 0.8;
-    let rand = XorShiftRng::from_seed([0, 1, 1, 2]);
+    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let prefiller = |_| {
         let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida)

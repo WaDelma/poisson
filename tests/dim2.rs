@@ -15,15 +15,15 @@ use helper::test_with_samples;
 
 #[test]
 fn test_one_sample_works() {
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
+    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
     let builder = builder.build(rand, algorithm::Ebeida);
-    builder.into_iter().collect::<Vec<Vect>>();
+    builder.into_iter().for_each(drop);
 
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
+    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
     let builder = builder.build(rand, algorithm::Bridson);
-    builder.into_iter().collect::<Vec<Vect>>();
+    builder.into_iter().for_each(drop);
 }
 
 #[test]

@@ -2,6 +2,7 @@
 use poisson::{Type, Builder, Vector, Float, algorithm};
 
 use rand::{SeedableRng, XorShiftRng};
+use rand::distributions::{Distribution, Standard};
 
 extern crate num_traits;
 use self::num_traits::NumCast;
@@ -32,25 +33,52 @@ pub enum When {
 }
 
 pub fn test_with_samples<T>(samples: usize, relative_radius: f64, seeds: u32, ptype: Type)
-    where T: Debug + Vector<f64> + Copy
+    where T: Debug + Vector<f64> + Copy,
+          Standard: Distribution<T>,
 {
     test_with_samples_prefilled(samples, relative_radius, seeds, ptype, |_| |_| None::<T>, When::Always);
 }
 
 pub fn test_with_samples_prefilled<'r, T, F, I>(samples: usize, relative_radius: f64, seeds: u32, ptype: Type, mut prefiller: F, valid: When)
-    where T: 'r + Debug + Vector<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>
+    where T: 'r + Debug + Vector<f64> + Copy,
+          F: FnMut(f64) -> I,
+          I: FnMut(Option<T>) -> Option<T>,
+          Standard: Distribution<f64>,
+          Standard: Distribution<T>,
 {
     test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, algorithm::Ebeida);
     test_algo(samples, relative_radius, seeds, ptype, &mut prefiller, valid, algorithm::Bridson);
 }
 
 fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, ptype: Type, prefiller: &mut F, valid: When, algo: A)
-    where T: 'r + Debug + Vector<f64> + Copy, F: FnMut(f64) -> I, I: FnMut(Option<T>) -> Option<T>, A: algorithm::Creator<f64, T>
+    where T: 'r + Debug + Vector<f64> + Copy,
+          F: FnMut(f64) -> I,
+          I: FnMut(Option<T>) -> Option<T>,
+          A: algorithm::Creator<f64, T>,
+          Standard: Distribution<f64>,
+          Standard: Distribution<T>,
 {
     use self::When::*;
     for i in 0..seeds {
         let mut prefilled = vec![];
-        let rand = XorShiftRng::from_seed([i + 1, seeds - i + 1, (i + 1) * (i + 1), 1]);
+        let rand = XorShiftRng::from_seed([
+            (i*3 + 2741) as u8,
+            (i*7 + 2729) as u8,
+            (i*13 + 2713) as u8,
+            (i*19 + 2707) as u8,
+            (i*29 + 2693) as u8,
+            (i*37 + 2687) as u8,
+            (i*43 + 2677) as u8,
+            (i*53 + 2663) as u8,
+            (i*61 + 2657) as u8,
+            (i*71 + 2633) as u8,
+            (i*79 + 2609) as u8,
+            (i*89 + 2591) as u8,
+            (i*101 + 2557) as u8,
+            (i*107 + 2549) as u8,
+            (i*113 + 2539) as u8,
+            (i*131 + 2521) as u8,
+        ]);
         let mut poisson_iter = Builder::with_samples(samples, relative_radius, ptype).build(rand, algo).into_iter();
         let mut poisson = vec![];
         let mut prefill = (prefiller)(poisson_iter.radius());

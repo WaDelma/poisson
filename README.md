@@ -37,12 +37,15 @@ extern crate poisson;
 extern crate rand;
 extern crate nalgebra as na;
 
+use rand::FromEntropy;
+use rand::rngs::SmallRng;
+
 use poisson::{Builder, Type, algorithm};
 
 fn main() {
     let poisson =
         Builder::<_, na::Vector2<f64>>::with_radius(0.1, Type::Normal)
-            .build(rand::weak_rng(), algorithm::Ebeida);
+            .build(SmallRng::from_entropy(), algorithm::Ebeida);
     println!("{:?}", poisson.generate());
 }
 ```
