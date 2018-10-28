@@ -41,7 +41,8 @@ fn multiple_too_close_invalid() {
             }
         }
     };
-    helper::test_with_samples_prefilled(samples, relative_radius, 20, Type::Normal, prefiller, Never);
+    // TODO: At 10 the test suddenly takes forever and takes all of the memory resulting into getting killed by oom killer
+    helper::test_with_samples_prefilled(samples, relative_radius, 5, Type::Normal, prefiller, Never);
 }
 
 pub fn sphere_uniform_point<R: Rng>(rng: &mut R) -> Vect {

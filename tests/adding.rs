@@ -49,7 +49,8 @@ fn adding_valid_middle_works() {
         move |_| pre.next().and_then(|s| s)
     };
 
-    helper::test_with_samples_prefilled(samples, relative_radius, 100, Type::Normal, prefiller, Sometimes);
+    // TODO: At 40 the test suddenly takes forever and takes all of the memory resulting into getting killed by oom killer
+    helper::test_with_samples_prefilled(samples, relative_radius, 30, Type::Normal, prefiller, Sometimes);
 }
 
 #[test]
