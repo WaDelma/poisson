@@ -18,12 +18,12 @@ fn test_one_sample_works() {
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
     let builder = builder.build(rand, algorithm::Ebeida);
-    builder.into_iter().collect::<Vec<Vect>>();
+    builder.into_iter().for_each(drop);
 
     let rand = XorShiftRng::from_seed([1, 2, 3, 4]);
     let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
     let builder = builder.build(rand, algorithm::Bridson);
-    builder.into_iter().collect::<Vec<Vect>>();
+    builder.into_iter().for_each(drop);
 }
 
 #[test]
