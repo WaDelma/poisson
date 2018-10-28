@@ -5,6 +5,7 @@ use {Builder, Type, Vector, Float};
 use num_traits::NumCast;
 
 use rand::Rng;
+use rand::distributions::{Distribution, Standard};
 
 use modulo::Mod;
 
@@ -145,11 +146,12 @@ fn decoding_outside_of_area_fails() {
 pub fn choose_random_sample<F, V, R>(rng: &mut R, grid: &Grid<F, V>, index: V, level: usize) -> V
     where F: Float,
           V: Vector<F>,
-          R: Rng
+          R: Rng,
+          Standard: Distribution<V>,
 {
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell / F::cast(side);
-    (index + V::rand(rng)) * spacing
+    (index + rng.gen()) * spacing
 }
 
 #[test]
@@ -157,7 +159,7 @@ fn random_point_is_between_right_values_top_lvl() {
     extern crate nalgebra;
     use num_traits::Zero;
     use rand::{SeedableRng, XorShiftRng};
-    let mut rand = XorShiftRng::from_seed([1, 2, 3, 4]);
+    let mut rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let radius = 0.2;
     let grid = Grid::<f64, nalgebra::Vector2<_>>::new(radius, Type::Normal);
     for _ in 0..1000 {
@@ -228,11 +230,10 @@ pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: Type) -> F
     use Type::*;
     let diff = v2 - v1;
     match poisson_type {
-        Perioditic => {
+        Perioditic =>
             each_combination(&[-1, 0, 1])
                 .map(|v| (diff.clone() + v).norm_squared())
-                .fold(F::max_value(), |a, b| a.min(b))
-        }
+                .fold(F::max_value(), |a, b| a.min(b)),
         Normal => diff.norm_squared(),
     }
 }

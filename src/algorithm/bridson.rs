@@ -2,12 +2,8 @@ use {Builder, Vector, Float};
 use algorithm::{Creator, Algorithm};
 use utils::*;
 
-use num_traits::NumCast;
-
-use rand::{Rand, Rng};
-use rand::distributions::range::Range;
-use rand::distributions::IndependentSample;
-use rand::distributions::normal::StandardNormal;
+use rand::Rng;
+use rand::distributions::{Distribution, Standard, Uniform};
 
 use sphere::sphere_volume;
 
@@ -19,7 +15,8 @@ pub struct Bridson;
 impl<F, V> Creator<F, V> for Bridson
     where F: Float,
           V: Vector<F>,
-
+          Standard: Distribution<F>,
+          Standard: Distribution<V>,
 {
     type Algo = Algo<F, V>;
 
@@ -48,13 +45,15 @@ pub struct Algo<F, V>
 impl<F, V> Algorithm<F, V> for Algo<F, V>
     where F: Float,
           V: Vector<F>,
+          Standard: Distribution<F>,
+          Standard: Distribution<V>,
 
 {
     fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
         where R: Rng
     {
         while !self.active_samples.is_empty() {
-            let index = Range::new(0, self.active_samples.len()).ind_sample(rng);
+            let index = rng.sample(Uniform::new(0, self.active_samples.len()));
             let cur = self.active_samples[index].clone();
             for _ in 0..30 {
                 let min = F::cast(2) * poisson.radius;
@@ -70,7 +69,7 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
             self.active_samples.swap_remove(index);
         }
         while self.success == 0 {
-            let cell = Range::new(0, self.grid.cells()).ind_sample(rng);
+            let cell = rng.sample(Uniform::new(0, self.grid.cells()));
             let index: V = decode(cell, self.grid.side())
                                .expect("Because we are decoding random index within grid \
                                         this should work.");
@@ -150,16 +149,16 @@ impl<F, V> Algo<F, V>
 fn random_point_annulus<F, V, R>(rand: &mut R, min: F, max: F) -> V
     where F: Float,
           V: Vector<F>,
-          R: Rng
+          R: Rng,
+          Standard: Distribution<F>,
+          Standard: Distribution<V>,
 {
     loop {
         let mut result = V::zero();
         for n in 0..V::dimension() {
-            result[n] = NumCast::from(StandardNormal::rand(rand).0)
-                     .expect("The f64 produced by StandardNormal should be always castable to \
-                              float.");
+            result[n] = rand.gen();
         }
-        let result = result.normalize() * F::rand(rand) * max;
+        let result = result.normalize() * rand.gen() * max;
         if result.norm() >= min {
             return result;
         }

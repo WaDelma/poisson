@@ -20,13 +20,16 @@
 //! extern crate poisson;
 //! extern crate rand;
 //! extern crate nalgebra as na;
+//! 
+//! use rand::FromEntropy;
+//! use rand::rngs::SmallRng;
 //!
 //! use poisson::{Builder, Type, algorithm};
 //!
 //! fn main() {
 //!     let poisson =
 //!         Builder::<_, na::Vector2<f64>>::with_radius(0.1, Type::Normal)
-//!             .build(rand::weak_rng(), algorithm::Ebeida);
+//!             .build(SmallRng::from_entropy(), algorithm::Ebeida);
 //!     let samples = poisson.generate();
 //!     println!("{:?}", samples);
 //! }
@@ -40,11 +43,13 @@
 //! # extern crate rand;
 //! # extern crate nalgebra as na;
 //! # use poisson::{Builder, Type, algorithm};
+//! # use rand::FromEntropy;
+//! # use rand::rngs::SmallRng;
 //!
 //! fn main() {
 //!     let poisson =
 //!         Builder::<_, na::Vector3<f32>>::with_samples(100, 0.9, Type::Perioditic)
-//!             .build(rand::weak_rng(), algorithm::Bridson);
+//!             .build(SmallRng::from_entropy(), algorithm::Bridson);
 //!     for sample in poisson {
 //!         println!("{:?}", sample)
 //!     }
@@ -55,7 +60,7 @@ extern crate modulo;
 extern crate sphere;
 
 extern crate rand;
-use rand::{Rand, Rng};
+use rand::Rng;
 
 extern crate num_traits;
 use num_traits::{NumCast, Zero};
@@ -84,21 +89,19 @@ pub trait Float:
     AddAssign +
     SubAssign +
     MulAssign +
-    DivAssign +
-    Rand
+    DivAssign
 {
     /// Casts usize to float.
     fn cast(n: usize) -> Self {
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> Float for T where T: NumFloat + AbstractField + AddAssign + SubAssign + MulAssign + DivAssign + Rand
+impl<T> Float for T where T: NumFloat + AbstractField + AddAssign + SubAssign + MulAssign + DivAssign
 {}
 
 /// Describes what vectors are.
 pub trait Vector<F>:
     Zero +
-    Rand +
     FiniteDimVectorSpace<Field=F> +
     NormedSpace<Field=F> +
     Index<usize> +
@@ -108,7 +111,7 @@ pub trait Vector<F>:
 {}
 impl<T, F> Vector<F> for T
     where F: Float,
-          T: Zero + Rand + FiniteDimVectorSpace<Field=F> + NormedSpace<Field=F> + Index<usize> + IndexMut<usize> + Clone,
+          T: Zero + FiniteDimVectorSpace<Field=F> + NormedSpace<Field=F> + Index<usize> + IndexMut<usize> + Clone,
 {}
 
 /// Enum for determining the type of poisson-disk distribution.
