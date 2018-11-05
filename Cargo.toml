@@ -15,7 +15,7 @@ alga = "0.7"
 num-traits = "0.2"
 lazy_static = "0.1"
 modulo = "0.1"
-sphere = "0.2"
+sphere = "0.3"
 
 [dev-dependencies]
 nalgebra = "0.16"
