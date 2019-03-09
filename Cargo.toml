@@ -10,15 +10,15 @@ keywords = [ "distribution", "poisson-disk", "multidimensional", "sampling" ]
 license = "MIT"
 
 [dependencies]
-rand = "0.5"
-alga = "0.7"
+rand = "0.6"
+alga = "0.8"
 num-traits = "0.2"
 lazy_static = "0.1"
 modulo = "0.1"
 sphere = "0.3"
 
 [dev-dependencies]
-nalgebra = "0.16"
+nalgebra = "0.17"
 
 [profile.test]
 opt-level = 3
