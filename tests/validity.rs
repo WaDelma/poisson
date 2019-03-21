@@ -2,8 +2,11 @@ extern crate poisson;
 use poisson::Type;
 
 extern crate rand;
-use rand::{Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, SeedableRng};
 use rand::distributions::StandardNormal;
+
+extern crate rand_xorshift;
+use rand_xorshift::XorShiftRng;
 
 extern crate sphere;
 

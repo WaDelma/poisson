@@ -2,6 +2,7 @@ extern crate poisson;
 use poisson::Type::*;
 
 extern crate rand;
+extern crate rand_xorshift;
 
 extern crate sphere;
 
