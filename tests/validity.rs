@@ -3,7 +3,7 @@ use poisson::Type;
 
 extern crate rand;
 use rand::{Rng, SeedableRng, XorShiftRng};
-use rand::distributions::normal::StandardNormal;
+use rand::distributions::StandardNormal;
 
 extern crate sphere;
 
