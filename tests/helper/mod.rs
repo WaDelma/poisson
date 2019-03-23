@@ -1,8 +1,10 @@
 #![allow(unused)]
 use poisson::{Type, Builder, Vector, Float, algorithm};
 
-use rand::{SeedableRng, XorShiftRng};
+use rand::SeedableRng;
 use rand::distributions::{Distribution, Standard};
+
+use rand_xorshift::XorShiftRng;
 
 extern crate num_traits;
 use self::num_traits::NumCast;

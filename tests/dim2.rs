@@ -1,9 +1,12 @@
 extern crate poisson;
-use poisson::{Builder, algorithm};
 use poisson::Type::*;
+use poisson::{algorithm, Builder};
 
 extern crate rand;
-use rand::{XorShiftRng, SeedableRng};
+use rand::SeedableRng;
+
+extern crate rand_xorshift;
+use rand_xorshift::XorShiftRng;
 
 extern crate sphere;
 
