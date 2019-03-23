@@ -1,0 +1,7 @@
+[package]
+name = "poisson-visualisation"
+version = "0.1.0"
+authors = ["delma <delma@del.ma>"]
+edition = "2018"
+
+[dependencies]
