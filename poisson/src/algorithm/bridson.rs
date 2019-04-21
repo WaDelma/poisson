@@ -2,7 +2,9 @@ use {Builder, Vector, Float};
 use algorithm::{Creator, Algorithm};
 use utils::*;
 
-use rand::Rng;
+use num_traits::NumCast;
+
+use rand::{Rng, distributions::StandardNormal};
 use rand::distributions::{Distribution, Standard, Uniform};
 
 use sphere::sphere_volume;
@@ -156,11 +158,53 @@ fn random_point_annulus<F, V, R>(rand: &mut R, min: F, max: F) -> V
     loop {
         let mut result = V::zero();
         for n in 0..V::dimension() {
-            result[n] = rand.gen();
+            result[n] = NumCast::from(rand.sample(StandardNormal))
+                .expect("The f64 produced by StandardNormal should be always castable to float.");
         }
         let result = result.normalize() * rand.gen() * max;
         if result.norm() >= min {
             return result;
         }
     }
+}
+
+#[test]
+fn random_point_annulus_does_not_generate_outside_annulus() {
+    extern crate nalgebra;
+    use rand::{SeedableRng, rngs::SmallRng};
+    let mut rng = SmallRng::seed_from_u64(42);
+    for _ in 0..10000 {
+        let result: nalgebra::Vector2<f64> = random_point_annulus(&mut rng, 1., 2.);
+        assert!(result.norm() >= 1.);
+        assert!(result.norm() <= 2.);
+    }
+}
+
+
+#[test]
+fn random_point_annulus_generates_all_quadrants() {
+    extern crate nalgebra;
+    use rand::{SeedableRng, rngs::SmallRng};
+    let mut rng = SmallRng::seed_from_u64(42);
+    let (mut top_left, mut top_right, mut bottom_left, mut bottom_right) = (false, false, false, false);
+    for _ in 0..10000 {
+        let result: nalgebra::Vector2<f64> = random_point_annulus(&mut rng, 1., 2.);
+        if result.y < 0. {
+            if result.x < 0. {
+                bottom_left = true;
+            } else {
+                bottom_right = true;
+            }
+        } else {
+            if result.x < 0. {
+                top_left = true;
+            } else {
+                top_right = true;
+            }
+        }
+    }
+    assert!(top_left);
+    assert!(top_right);
+    assert!(bottom_left);
+    assert!(bottom_right);
 }
