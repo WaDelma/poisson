@@ -1,0 +1,14 @@
+[package]
+name = "poisson-visualisation"
+version = "0.1.0"
+authors = ["delma <delma@del.ma>"]
+edition = "2018"
+
+[dependencies]
+nalgebra = "0.17"
+image = "0.21.0"
+clap = "2.32.0"
+rand = "0.6"
+lab = "0.4"
+fnv = "1.0"
+poisson = { path = "../poisson" }

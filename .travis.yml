@@ -45,5 +45,5 @@ script:
 after_success:
   - |
       if [ "$TRAVIS_RUST_VERSION" == "stable" ]; then
-        cargo coveralls --exclude-pattern tests/;
+        cargo coveralls --all --exclude-pattern tests/;
       fi
