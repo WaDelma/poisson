@@ -32,7 +32,9 @@ arg_enum! {
 }
 
 fn main() {
-    let app = App::with_defaults("Poisson visualisation")
+    let app = App::new("Poisson visualisation")
+        .author("delma")
+        .version("0.1.0")
         .about("Visualisation for poisson library")
         .arg(
             Arg::with_name("OUTPUT")
