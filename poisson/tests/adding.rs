@@ -1,22 +1,13 @@
-extern crate poisson;
 use poisson::{Type, Builder, algorithm};
 
-extern crate rand;
-use rand::SeedableRng;
-
-extern crate rand_xorshift;
-use rand_xorshift::XorShiftRng;
-
-extern crate sphere;
+use rand::{SeedableRng, rngs::SmallRng};
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector2<f64>;
 
-extern crate num_traits;
-
 use std::iter::repeat;
 
-use helper::When::*;
+use crate::helper::When::*;
 
 mod helper;
 
@@ -24,7 +15,7 @@ mod helper;
 fn adding_valid_start_works() {
     let samples = 100;
     let relative_radius = 0.8;
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let prefiller = |_| {
         let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida)
@@ -39,7 +30,7 @@ fn adding_valid_start_works() {
 fn adding_valid_middle_works() {
     let samples = 100;
     let relative_radius = 0.8;
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let prefiller = |_| {
         let prefiller = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida);
@@ -94,7 +85,7 @@ fn adding_to_outside_of_edges_start_works() {
 fn completely_filled_works() {
     let samples = 100;
     let relative_radius = 0.8;
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let prefiller = |_| {
         let mut pre = Builder::<_, Vect>::with_samples(samples, relative_radius, Type::Normal)
             .build(rand.clone(), algorithm::Ebeida)

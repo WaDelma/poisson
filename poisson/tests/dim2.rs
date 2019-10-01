@@ -1,29 +1,22 @@
-extern crate poisson;
 use poisson::Type::*;
 use poisson::{algorithm, Builder};
 
-extern crate rand;
-use rand::SeedableRng;
-
-extern crate rand_xorshift;
-use rand_xorshift::XorShiftRng;
-
-extern crate sphere;
+use rand::{SeedableRng, rngs::SmallRng};
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector2<f64>;
 
 mod helper;
-use helper::test_with_samples;
+use crate::helper::test_with_samples;
 
 #[test]
 fn test_one_sample_works() {
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
     let builder = builder.build(rand, algorithm::Ebeida);
     builder.into_iter().for_each(drop);
 
-    let rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    let rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let builder = Builder::<_, Vect>::with_samples(1, 0.8, Normal);
     let builder = builder.build(rand, algorithm::Bridson);
     builder.into_iter().for_each(drop);

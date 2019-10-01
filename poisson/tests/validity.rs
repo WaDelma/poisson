@@ -1,25 +1,16 @@
-extern crate poisson;
 use poisson::Type;
 
-extern crate rand;
-use rand::{Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand::distributions::StandardNormal;
-
-extern crate rand_xorshift;
-use rand_xorshift::XorShiftRng;
-
-extern crate sphere;
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector2<f64>;
 
-extern crate alga;
-use self::alga::linear::FiniteDimVectorSpace;
+use alga::linear::FiniteDimVectorSpace;
 
-extern crate num_traits;
 use num_traits::Zero;
 
-use helper::When::*;
+use crate::helper::When::*;
 
 mod helper;
 
@@ -29,7 +20,7 @@ fn multiple_too_close_invalid() {
     let relative_radius = 0.8;
     let prefiller = |radius| {
         let mut last = None::<Vect>;
-        let mut rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+        let mut rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
         move |v| {
             if let Some(_) = v {
                 if last == v {

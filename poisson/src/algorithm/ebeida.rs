@@ -1,6 +1,6 @@
-use {Builder, Vector, Float};
-use algorithm::{Creator, Algorithm};
-use utils::*;
+use crate::{Builder, Vector, Float};
+use crate::algorithm::{Creator, Algorithm};
+use crate::utils::*;
 
 use rand::Rng;
 use rand::distributions::{Distribution, Standard, Uniform};

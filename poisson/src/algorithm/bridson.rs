@@ -1,6 +1,6 @@
-use {Builder, Vector, Float};
-use algorithm::{Creator, Algorithm};
-use utils::*;
+use crate::{Builder, Vector, Float};
+use crate::algorithm::{Creator, Algorithm};
+use crate::utils::*;
 
 use num_traits::NumCast;
 
@@ -170,7 +170,6 @@ fn random_point_annulus<F, V, R>(rand: &mut R, min: F, max: F) -> V
 
 #[test]
 fn random_point_annulus_does_not_generate_outside_annulus() {
-    extern crate nalgebra;
     use rand::{SeedableRng, rngs::SmallRng};
     let mut rng = SmallRng::seed_from_u64(42);
     for _ in 0..10000 {
@@ -183,7 +182,6 @@ fn random_point_annulus_does_not_generate_outside_annulus() {
 
 #[test]
 fn random_point_annulus_generates_all_quadrants() {
-    extern crate nalgebra;
     use rand::{SeedableRng, rngs::SmallRng};
     let mut rng = SmallRng::seed_from_u64(42);
     let (mut top_left, mut top_right, mut bottom_left, mut bottom_right) = (false, false, false, false);

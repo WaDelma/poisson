@@ -1,4 +1,4 @@
-use {Type, Vector, Float};
+use crate::{Type, Vector, Float};
 
 use num_traits::NumCast;
 
@@ -78,7 +78,7 @@ pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: Type) -> F
           V: Vector<F>,
 
 {
-    use Type::*;
+    use crate::Type::*;
     assert!(Type::Perioditic == poisson_type || V::dimension() < 5);
     assert!(V::dimension() < 9);
     assert!(samples > 0);

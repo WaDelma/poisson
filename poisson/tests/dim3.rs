@@ -1,16 +1,10 @@
-extern crate poisson;
 use poisson::Type::*;
-
-extern crate rand;
-extern crate rand_xorshift;
-
-extern crate sphere;
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector3<f64>;
 
 mod helper;
-use helper::test_with_samples;
+use crate::helper::test_with_samples;
 
 #[test]
 fn test_3d_1_80_normal() {

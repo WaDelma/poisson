@@ -1,17 +1,13 @@
 #![allow(unused)]
 use poisson::{Type, Builder, Vector, Float, algorithm};
 
-use rand::SeedableRng;
+use rand::{SeedableRng, rngs::SmallRng};
 use rand::distributions::{Distribution, Standard};
 
-use rand_xorshift::XorShiftRng;
+use num_traits::NumCast;
 
-extern crate num_traits;
-use self::num_traits::NumCast;
-
-extern crate alga;
-use self::alga::general::AbstractField;
-use self::alga::linear::{NormedSpace, FiniteDimVectorSpace};
+use alga::general::AbstractField;
+use alga::linear::{NormedSpace, FiniteDimVectorSpace};
 
 use std::fmt::Debug;
 
@@ -63,7 +59,7 @@ fn test_algo<'r, T, F, I, A>(samples: usize, relative_radius: f64, seeds: u32, p
     use self::When::*;
     for i in 0..seeds {
         let mut prefilled = vec![];
-        let rand = XorShiftRng::from_seed([
+        let rand = SmallRng::from_seed([
             (i*3 + 2741) as u8,
             (i*7 + 2729) as u8,
             (i*13 + 2713) as u8,

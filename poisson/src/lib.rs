@@ -39,8 +39,6 @@
 //! and relative disk radius 0.9 using faster but less accurate algorithm.
 //!
 //! ````rust
-//! # extern crate poisson;
-//! # extern crate rand;
 //! # extern crate nalgebra as na;
 //! # use poisson::{Builder, Type, algorithm};
 //! # use rand::FromEntropy;
@@ -55,18 +53,12 @@
 //!     }
 //! }
 //! ````
-extern crate modulo;
 
-extern crate sphere;
-
-extern crate rand;
 use rand::Rng;
 
-extern crate num_traits;
 use num_traits::{NumCast, Zero};
 use num_traits::Float as NumFloat;
 
-extern crate alga;
 use alga::general::AbstractField;
 use alga::linear::{NormedSpace, FiniteDimVectorSpace};
 
@@ -76,8 +68,8 @@ extern crate lazy_static;
 use std::marker::PhantomData;
 use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
 
-use algorithm::{Creator, Algorithm};
-use utils::math::calc_radius;
+use crate::algorithm::{Creator, Algorithm};
+use crate::utils::math::calc_radius;
 
 pub mod algorithm;
 mod utils;

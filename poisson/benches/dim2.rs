@@ -3,14 +3,9 @@
 extern crate test;
 use test::{Bencher, black_box};
 
-extern crate poisson;
 use poisson::{Builder, Type, algorithm};
 
-extern crate rand;
-use rand::{SeedableRng};
-
-extern crate rand_xorshift;
-use rand_xorshift::XorShiftRng;
+use rand::{SeedableRng, rngs::SmallRng};
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector2<f64>;
@@ -36,7 +31,7 @@ const SEED: [u8; 16] = [
 
 #[bench]
 fn bench_ebeida_2d_1_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(1, 0.8, Type::Normal)
             .build(rand, algorithm::Ebeida);
@@ -45,7 +40,7 @@ fn bench_ebeida_2d_1_80_normal(b: &mut Bencher) {
 
 #[bench]
 fn bench_ebeida_2d_10_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(10, 0.8, Type::Normal)
             .build(rand, algorithm::Ebeida);
@@ -54,7 +49,7 @@ fn bench_ebeida_2d_10_80_normal(b: &mut Bencher) {
 
 #[bench]
 fn bench_ebeida_2d_100_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(100, 0.8, Type::Normal)
             .build(rand, algorithm::Ebeida);
@@ -63,7 +58,7 @@ fn bench_ebeida_2d_100_80_normal(b: &mut Bencher) {
 
 #[bench]
 fn bench_bridson_2d_1_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(1, 0.8, Type::Normal)
             .build(rand, algorithm::Bridson);
@@ -72,7 +67,7 @@ fn bench_bridson_2d_1_80_normal(b: &mut Bencher) {
 
 #[bench]
 fn bench_bridson_2d_10_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(10, 0.8, Type::Normal)
             .build(rand, algorithm::Bridson);
@@ -81,7 +76,7 @@ fn bench_bridson_2d_10_80_normal(b: &mut Bencher) {
 
 #[bench]
 fn bench_bridson_2d_100_80_normal(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(100, 0.8, Type::Normal)
             .build(rand, algorithm::Bridson);
@@ -90,7 +85,7 @@ fn bench_bridson_2d_100_80_normal(b: &mut Bencher) {
 
 #[bench]
 fn bench_ebeida_2d_1_80_perioditic(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(1, 0.8, Type::Perioditic)
             .build(rand, algorithm::Ebeida);
@@ -99,7 +94,7 @@ fn bench_ebeida_2d_1_80_perioditic(b: &mut Bencher) {
 
 #[bench]
 fn bench_ebeida_2d_10_80_perioditic(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(10, 0.8, Type::Perioditic)
             .build(rand, algorithm::Ebeida);
@@ -108,7 +103,7 @@ fn bench_ebeida_2d_10_80_perioditic(b: &mut Bencher) {
 
 #[bench]
 fn bench_ebeida_2d_100_80_perioditic(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(100, 0.8, Type::Perioditic)
             .build(rand, algorithm::Ebeida);
@@ -117,7 +112,7 @@ fn bench_ebeida_2d_100_80_perioditic(b: &mut Bencher) {
 
 #[bench]
 fn bench_bridson_2d_1_80_perioditic(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(1, 0.8, Type::Perioditic)
             .build(rand, algorithm::Bridson);
@@ -126,7 +121,7 @@ fn bench_bridson_2d_1_80_perioditic(b: &mut Bencher) {
 
 #[bench]
 fn bench_bridson_2d_10_80_perioditic(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(10, 0.8, Type::Perioditic)
             .build(rand, algorithm::Bridson);
@@ -135,7 +130,7 @@ fn bench_bridson_2d_10_80_perioditic(b: &mut Bencher) {
 
 #[bench]
 fn bench_bridson_2d_100_80_perioditic(b: &mut Bencher) {
-    let rand = XorShiftRng::from_seed(SEED);
+    let rand = SmallRng::from_seed(SEED);
     let poisson =
         Builder::<_, Vect>::with_samples(100, 0.8, Type::Perioditic)
             .build(rand, algorithm::Bridson);

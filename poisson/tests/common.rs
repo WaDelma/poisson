@@ -1,11 +1,7 @@
-extern crate poisson;
 use poisson::{Type, Builder};
 
-extern crate rand;
-extern crate rand_xorshift;
-
 extern crate nalgebra as na;
-use na::Vector2 as naVec2;
+use crate::na::Vector2 as naVec2;
 pub type Vec2 = naVec2<f64>;
 
 #[test]

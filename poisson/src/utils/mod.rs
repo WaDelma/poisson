@@ -1,6 +1,6 @@
 //! Helper functions that poisson uses.
 
-use {Builder, Type, Vector, Float};
+use crate::{Builder, Type, Vector, Float};
 
 use num_traits::NumCast;
 
@@ -69,7 +69,7 @@ pub fn encode<F, V>(v: &V, side: usize, poisson_type: Type) -> Option<usize>
     where F: Float,
           V: Vector<F>,
 {
-    use Type::*;
+    use crate::Type::*;
     let mut index = 0;
     for n in 0..V::dimension() {
         let n = v[n];
@@ -114,7 +114,6 @@ pub fn decode<F, V>(index: usize, side: usize) -> Option<V>
 
 #[test]
 fn encoding_decoding_works() {
-    extern crate nalgebra;
     let n = nalgebra::Vector2::new(10., 7.);
     assert_eq!(n,
                decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap());
@@ -122,7 +121,6 @@ fn encoding_decoding_works() {
 
 #[test]
 fn encoding_decoding_at_edge_works() {
-    extern crate nalgebra;
     let n = nalgebra::Vector2::new(14., 14.);
     assert_eq!(n,
                decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap());
@@ -130,7 +128,6 @@ fn encoding_decoding_at_edge_works() {
 
 #[test]
 fn encoding_outside_of_area_fails() {
-    extern crate nalgebra;
     let n = nalgebra::Vector2::new(9., 7.);
     assert_eq!(None, encode(&n, 9, Type::Normal));
     let n = nalgebra::Vector2::new(7., 9.);
@@ -139,7 +136,6 @@ fn encoding_outside_of_area_fails() {
 
 #[test]
 fn decoding_outside_of_area_fails() {
-    extern crate nalgebra;
     assert_eq!(None, decode::<f64, nalgebra::Vector2<_>>(100, 10));
 }
 
@@ -156,10 +152,9 @@ pub fn choose_random_sample<F, V, R>(rng: &mut R, grid: &Grid<F, V>, index: V, l
 
 #[test]
 fn random_point_is_between_right_values_top_lvl() {
-    extern crate nalgebra;
     use num_traits::Zero;
-    use rand::{SeedableRng, XorShiftRng};
-    let mut rand = XorShiftRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+    use rand::{SeedableRng, rngs::SmallRng};
+    let mut rand = SmallRng::from_seed([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
     let radius = 0.2;
     let grid = Grid::<f64, nalgebra::Vector2<_>>::new(radius, Type::Normal);
     for _ in 0..1000 {
@@ -227,7 +222,7 @@ pub fn sqdist<F, V>(v1: V, v2: V, poisson_type: Type) -> F
     where F: Float,
           V: Vector<F>,
 {
-    use Type::*;
+    use crate::Type::*;
     let diff = v2 - v1;
     match poisson_type {
         Perioditic =>
@@ -251,7 +246,6 @@ pub fn get_parent<F, V>(mut index: V, level: usize) -> V
 
 #[test]
 fn getting_parent_works() {
-    extern crate nalgebra;
     let divides = 4;
     let cells_per_cell = 2usize.pow(divides as u32);
     let testee = nalgebra::Vector2::new(1., 2.);
