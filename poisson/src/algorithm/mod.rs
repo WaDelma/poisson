@@ -1,6 +1,6 @@
 //! Module that contains traits that describe poisson-disk distribution generating algorithms.
 
-use crate::{Builder, Vector, Float};
+use crate::{Builder, Float, Vector};
 
 use rand::Rng;
 
@@ -14,9 +14,9 @@ mod ebeida;
 
 /// Constructs new instance of the algorithm.
 pub trait Creator<F, V>: Copy + Debug
-    where F: Float,
-          V: Vector<F>,
-
+where
+    F: Float,
+    V: Vector<F>,
 {
     /// Algorithm instance associated with the trait
     type Algo: Algorithm<F, V>;
@@ -27,12 +27,14 @@ pub trait Creator<F, V>: Copy + Debug
 
 /// Trait that describes poisson-disk distribution generating algorithm.
 pub trait Algorithm<F, V>
-    where F: Float,
-          V: Vector<F>,
-
+where
+    F: Float,
+    V: Vector<F>,
 {
     /// Generates new sample advancing the algorithm.
-    fn next<R>(&mut self, _: &mut Builder<F, V>, _: &mut R) -> Option<V> where R: Rng;
+    fn next<R>(&mut self, _: &mut Builder<F, V>, _: &mut R) -> Option<V>
+    where
+        R: Rng;
 
     /// Returns lower and upper bound of the amount of samples remaining for the algorithm to generate.
     fn size_hint(&self, _: &Builder<F, V>) -> (usize, Option<usize>);

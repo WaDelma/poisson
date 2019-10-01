@@ -1,7 +1,7 @@
 use poisson::Type::*;
 use poisson::{algorithm, Builder};
 
-use rand::{SeedableRng, rngs::SmallRng};
+use rand::{rngs::SmallRng, SeedableRng};
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector2<f64>;

@@ -1,4 +1,4 @@
-use poisson::{Type, Builder};
+use poisson::{Builder, Type};
 
 extern crate nalgebra as na;
 use crate::na::Vector2 as naVec2;

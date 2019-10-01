@@ -1,4 +1,4 @@
-use crate::{Type, Vector, Float};
+use crate::{Float, Type, Vector};
 
 use num_traits::NumCast;
 
@@ -57,9 +57,9 @@ fn newton(samples: usize, dim: usize) -> usize {
     let alpha = ALPHA[dim - 2];
     let beta = BETA[dim - 2];
     for _ in 0..5 {
-        n = n -
-            (n + alpha * n.powf(beta + 1.) - samples as f64) /
-            (1. + alpha * (beta + 1.) * n.powf(beta));
+        n = n
+            - (n + alpha * n.powf(beta + 1.) - samples as f64)
+                / (1. + alpha * (beta + 1.) * n.powf(beta));
         if n < 1. {
             return 1;
         }
@@ -74,9 +74,9 @@ fn newton(samples: usize, dim: usize) -> usize {
 /// For perioditic this is supported up to 8 dimensions.
 /// Based on Gamito, Manuel N., and Steve C. Maddock. "Accurate multidimensional Poisson-disk sampling." ACM Transactions on Graphics (TOG) 29.1 (2009): 8.
 pub fn calc_radius<F, V>(samples: usize, relative: F, poisson_type: Type) -> F
-    where F: Float,
-          V: Vector<F>,
-
+where
+    F: Float,
+    V: Vector<F>,
 {
     use crate::Type::*;
     assert!(Type::Perioditic == poisson_type || V::dimension() < 5);
