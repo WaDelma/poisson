@@ -1,9 +1,9 @@
-use {Builder, Vector, Float};
-use algorithm::{Creator, Algorithm};
-use utils::*;
+use crate::algorithm::{Algorithm, Creator};
+use crate::utils::*;
+use crate::{Builder, Float, Vector};
 
-use rand::Rng;
 use rand::distributions::{Distribution, Standard, Uniform};
+use rand::Rng;
 
 use sphere::sphere_volume;
 
@@ -13,10 +13,11 @@ use sphere::sphere_volume;
 pub struct Ebeida;
 
 impl<F, V> Creator<F, V> for Ebeida
-    where F: Float,
-          V: Vector<F>,
-          Standard: Distribution<F>,
-          Standard: Distribution<V>,
+where
+    F: Float,
+    V: Vector<F>,
+    Standard: Distribution<F>,
+    Standard: Distribution<V>,
 {
     type Algo = Algo<F, V>;
 
@@ -47,16 +48,16 @@ impl<F, V> Creator<F, V> for Ebeida
             mantissa_digits: {
                 let (mantissa, _, _) = F::max_value().integer_decode();
                 mantissa.count_ones() as usize
-            }
+            },
         }
     }
 }
 
 /// Implementation for the Ebeida algorithm
 pub struct Algo<F, V>
-    where F: Float,
-          V: Vector<F>,
-
+where
+    F: Float,
+    V: Vector<F>,
 {
     grid: Grid<F, V>,
     indices: Vec<V>,
@@ -70,13 +71,15 @@ pub struct Algo<F, V>
 }
 
 impl<F, V> Algorithm<F, V> for Algo<F, V>
-    where F: Float,
-          V: Vector<F>,
-          Standard: Distribution<F>,
-          Standard: Distribution<V>,
+where
+    F: Float,
+    V: Vector<F>,
+    Standard: Distribution<F>,
+    Standard: Distribution<V>,
 {
     fn next<R>(&mut self, poisson: &mut Builder<F, V>, rng: &mut R) -> Option<V>
-        where R: Rng
+    where
+        R: Rng,
     {
         if self.indices.is_empty() {
             return None;
@@ -87,10 +90,12 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
                 let index = rng.sample(self.range);
                 let cur = self.indices[index].clone();
                 let parent = get_parent(cur.clone(), self.level);
-                if !self.grid
-                        .get(parent.clone())
-                        .expect("Indexing base grid by valid parent failed.")
-                        .is_empty() {
+                if !self
+                    .grid
+                    .get(parent.clone())
+                    .expect("Indexing base grid by valid parent failed.")
+                    .is_empty()
+                {
                     self.indices.swap_remove(index);
                     if self.indices.is_empty() {
                         return None;
@@ -98,12 +103,14 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
                     self.range = Uniform::new(0, self.indices.len());
                 } else {
                     let sample = choose_random_sample(rng, &self.grid, cur.clone(), self.level);
-                    if is_disk_free(&self.grid,
-                                    poisson,
-                                    cur.clone(),
-                                    self.level,
-                                    sample.clone(),
-                                    &self.outside) {
+                    if is_disk_free(
+                        &self.grid,
+                        poisson,
+                        cur.clone(),
+                        self.level,
+                        sample.clone(),
+                        &self.outside,
+                    ) {
                         self.grid
                             .get_mut(parent)
                             .expect("Indexing base grid by already indexed valid parent failed.")
@@ -129,12 +136,14 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         let cur = self.indices.swap_remove(index);
         let side = 2usize.pow(self.level as u32);
         let sample = index_to_sample(&cur, side);
-        if is_disk_free(&self.grid,
-                        poisson,
-                        cur.clone(),
-                        self.level,
-                        sample.clone(),
-                        &self.outside) {
+        if is_disk_free(
+            &self.grid,
+            poisson,
+            cur.clone(),
+            self.level,
+            sample.clone(),
+            &self.outside,
+        ) {
             Some(sample)
         } else {
             None
@@ -150,10 +159,10 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
         let grid_volume = F::cast(self.indices.len()) * spacing.powi(dim as i32);
         let sphere_volume = sphere_volume(F::cast(2) * poisson.radius, dim as u64);
         let lower = grid_volume / sphere_volume;
-        let mut lower = lower.floor()
-                             .to_usize()
-                             .expect("Grids volume divided by spheres volume should be always \
-                                      castable to usize.");
+        let mut lower = lower.floor().to_usize().expect(
+            "Grids volume divided by spheres volume should be always \
+             castable to usize.",
+        );
         if lower > 0 {
             lower -= 1;
         }
@@ -179,9 +188,9 @@ impl<F, V> Algorithm<F, V> for Algo<F, V>
 }
 
 impl<F, V> Algo<F, V>
-    where F: Float,
-          V: Vector<F>,
-
+where
+    F: Float,
+    V: Vector<F>,
 {
     fn subdivide(&mut self, poisson: &Builder<F, V>) {
         let choices = &[0, 1];
@@ -194,15 +203,16 @@ impl<F, V> Algo<F, V>
     }
 }
 
-fn covered<F, V>(grid: &Grid<F, V>,
-                 poisson: &Builder<F, V>,
-                 outside: &[V],
-                 index: V,
-                 level: usize)
-                 -> bool
-    where F: Float,
-          V: Vector<F>,
-
+fn covered<F, V>(
+    grid: &Grid<F, V>,
+    poisson: &Builder<F, V>,
+    outside: &[V],
+    index: V,
+    level: usize,
+) -> bool
+where
+    F: Float,
+    V: Vector<F>,
 {
     // TODO: This does 4^d checking of points even though it could be done 3^d
     let side = 2usize.pow(level as u32);
@@ -215,7 +225,7 @@ fn covered<F, V>(grid: &Grid<F, V>,
             each_combination(&[-2, -1, 0, 1, 2])
                 .filter_map(|t| grid.get(parent.clone() + t))
                 .flat_map(|t| t)
-                .any(|v| sqdist(v.clone(), t.clone(), poisson.poisson_type) < sqradius) ||
-            !is_valid(poisson, &outside, t)
+                .any(|v| sqdist(v.clone(), t.clone(), poisson.poisson_type) < sqradius)
+                || !is_valid(poisson, &outside, t)
         })
 }

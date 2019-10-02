@@ -35,8 +35,6 @@ as distribution for sampling in rendering or for (re)meshing.
 Works with nalgebra 0.16 and rand 0.5
 
 ```rust
-extern crate poisson;
-extern crate rand;
 extern crate nalgebra as na;
 
 use rand::FromEntropy;

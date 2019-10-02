@@ -1,13 +1,18 @@
 [package]
 name = "poisson"
-version = "0.9.0"
+version = "0.10.0"
 authors = ["WaDelma <>"]
 description = "Poisson-disk distribution generator."
 repository = "https://github.com/WaDelma/poisson"
-documentation = "https://WaDelma.github.io/poisson/"
 readme = "README.md"
+category = [ "algorithms" ]
 keywords = [ "distribution", "poisson-disk", "multidimensional", "sampling" ]
 license = "MIT"
+edition = "2018"
+
+[badges]
+travis-ci = { repository = "WaDelma/poisson" }
+coveralls = { repository = "WaDelma/poisson", service = "github" }
 
 [dependencies]
 rand = "0.6"
@@ -19,4 +24,3 @@ sphere = "0.3"
 
 [dev-dependencies]
 nalgebra = "0.17"
-rand_xorshift = "0.1.1"

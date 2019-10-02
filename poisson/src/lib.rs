@@ -20,7 +20,7 @@
 //! extern crate poisson;
 //! extern crate rand;
 //! extern crate nalgebra as na;
-//! 
+//!
 //! use rand::FromEntropy;
 //! use rand::rngs::SmallRng;
 //!
@@ -39,8 +39,6 @@
 //! and relative disk radius 0.9 using faster but less accurate algorithm.
 //!
 //! ````rust
-//! # extern crate poisson;
-//! # extern crate rand;
 //! # extern crate nalgebra as na;
 //! # use poisson::{Builder, Type, algorithm};
 //! # use rand::FromEntropy;
@@ -55,42 +53,29 @@
 //!     }
 //! }
 //! ````
-extern crate modulo;
 
-extern crate sphere;
-
-extern crate rand;
 use rand::Rng;
 
-extern crate num_traits;
-use num_traits::{NumCast, Zero};
 use num_traits::Float as NumFloat;
+use num_traits::{NumCast, Zero};
 
-extern crate alga;
 use alga::general::AbstractField;
-use alga::linear::{NormedSpace, FiniteDimVectorSpace};
+use alga::linear::{FiniteDimVectorSpace, NormedSpace};
 
 #[macro_use]
 extern crate lazy_static;
 
 use std::marker::PhantomData;
-use std::ops::{AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
+use std::ops::{AddAssign, DivAssign, Index, IndexMut, MulAssign, SubAssign};
 
-use algorithm::{Creator, Algorithm};
-use utils::math::calc_radius;
+use crate::algorithm::{Algorithm, Creator};
+use crate::utils::math::calc_radius;
 
 pub mod algorithm;
 mod utils;
 
 /// Describes what floats are.
-pub trait Float:
-    NumFloat +
-    AbstractField +
-    AddAssign +
-    SubAssign +
-    MulAssign +
-    DivAssign
-{
+pub trait Float: NumFloat + AbstractField + AddAssign + SubAssign + MulAssign + DivAssign {
     /// Casts usize to float.
     fn cast(n: usize) -> Self {
         NumCast::from(n).expect("Casting usize to float should always succeed.")
@@ -101,18 +86,27 @@ impl<T> Float for T where T: NumFloat + AbstractField + AddAssign + SubAssign + 
 
 /// Describes what vectors are.
 pub trait Vector<F>:
-    Zero +
-    FiniteDimVectorSpace<Field=F> +
-    NormedSpace<Field=F> +
-    Index<usize> +
-    IndexMut<usize> +
-    Clone
-      where F: Float,
-{}
+    Zero
+    + FiniteDimVectorSpace<Field = F>
+    + NormedSpace<Field = F>
+    + Index<usize>
+    + IndexMut<usize>
+    + Clone
+where
+    F: Float,
+{
+}
 impl<T, F> Vector<F> for T
-    where F: Float,
-          T: Zero + FiniteDimVectorSpace<Field=F> + NormedSpace<Field=F> + Index<usize> + IndexMut<usize> + Clone,
-{}
+where
+    F: Float,
+    T: Zero
+        + FiniteDimVectorSpace<Field = F>
+        + NormedSpace<Field = F>
+        + Index<usize>
+        + IndexMut<usize>
+        + Clone,
+{
+}
 
 /// Enum for determining the type of poisson-disk distribution.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -132,8 +126,9 @@ impl Default for Type {
 /// Builder for the generator.
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct Builder<F, V>
-    where F: Float,
-          V: Vector<F>,
+where
+    F: Float,
+    V: Vector<F>,
 {
     radius: F,
     poisson_type: Type,
@@ -141,15 +136,18 @@ pub struct Builder<F, V>
 }
 
 impl<V, F> Builder<F, V>
-    where F: Float,
-          V: Vector<F>,
+where
+    F: Float,
+    V: Vector<F>,
 {
     /// New Builder with type of distribution and radius specified.
     /// The radius should be ]0, √2 / 2]
     pub fn with_radius(radius: F, poisson_type: Type) -> Self {
         assert!(F::cast(0) < radius);
-        assert!(radius <=
-                NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
+        assert!(
+            radius
+                <= NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work.")
+        );
         Builder {
             radius: radius,
             poisson_type: poisson_type,
@@ -163,8 +161,8 @@ impl<V, F> Builder<F, V>
         assert!(relative >= F::cast(0));
         assert!(relative <= F::cast(1));
         Builder {
-            radius: relative *
-                    NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
+            radius: relative
+                * NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."),
             poisson_type: poisson_type,
             _marker: PhantomData,
         }
@@ -195,8 +193,9 @@ impl<V, F> Builder<F, V>
 
     /// Builds generator with random number generator and algorithm specified.
     pub fn build<R, A>(self, rng: R, _algo: A) -> Generator<F, V, R, A>
-        where R: Rng,
-              A: Creator<F, V>
+    where
+        R: Rng,
+        A: Creator<F, V>,
     {
         Generator::new(self, rng)
     }
@@ -205,10 +204,11 @@ impl<V, F> Builder<F, V>
 /// Generates poisson-disk distribution in [0, 1]<sup>d</sup> area.
 #[derive(Clone, Debug)]
 pub struct Generator<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng,
-          A: Creator<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng,
+    A: Creator<F, V>,
 {
     poisson: Builder<F, V>,
     rng: R,
@@ -216,10 +216,11 @@ pub struct Generator<F, V, R, A>
 }
 
 impl<F, V, R, A> Generator<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng,
-          A: Creator<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng,
+    A: Creator<F, V>,
 {
     fn new(poisson: Builder<F, V>, rng: R) -> Self {
         Generator {
@@ -232,8 +233,10 @@ impl<F, V, R, A> Generator<F, V, R, A>
     /// Sets the radius of the generator.
     pub fn set_radius(&mut self, radius: F) {
         assert!(F::cast(0) < radius);
-        assert!(radius <=
-                NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work."));
+        assert!(
+            radius
+                <= NumCast::from(2f64.sqrt() / 2.).expect("Casting constant should always work.")
+        );
         self.poisson.radius = radius;
     }
 
@@ -249,10 +252,11 @@ impl<F, V, R, A> Generator<F, V, R, A>
 }
 
 impl<F, V, R, A> Generator<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng + Clone,
-          A: Creator<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng + Clone,
+    A: Creator<F, V>,
 {
     /// Generates Poisson-disk distribution.
     pub fn generate(&self) -> Vec<V> {
@@ -261,10 +265,11 @@ impl<F, V, R, A> Generator<F, V, R, A>
 }
 
 impl<F, V, R, A> IntoIterator for Generator<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng,
-          A: Creator<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng,
+    A: Creator<F, V>,
 {
     type IntoIter = PoissonIter<F, V, R, A::Algo>;
     type Item = V;
@@ -281,10 +286,11 @@ impl<F, V, R, A> IntoIterator for Generator<F, V, R, A>
 /// Iterator for generating poisson-disk distribution.
 #[derive(Clone)]
 pub struct PoissonIter<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng,
-          A: Algorithm<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng,
+    A: Algorithm<F, V>,
 {
     poisson: Builder<F, V>,
     rng: R,
@@ -292,10 +298,11 @@ pub struct PoissonIter<F, V, R, A>
 }
 
 impl<F, V, R, A> Iterator for PoissonIter<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng,
-          A: Algorithm<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng,
+    A: Algorithm<F, V>,
 {
     type Item = V;
 
@@ -309,10 +316,11 @@ impl<F, V, R, A> Iterator for PoissonIter<F, V, R, A>
 }
 
 impl<F, V, R, A> PoissonIter<F, V, R, A>
-    where F: Float,
-          V: Vector<F>,
-          R: Rng,
-          A: Algorithm<F, V>,
+where
+    F: Float,
+    V: Vector<F>,
+    R: Rng,
+    A: Algorithm<F, V>,
 {
     /// Returns the radius of the generator.
     pub fn radius(&self) -> F {
