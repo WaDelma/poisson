@@ -122,8 +122,10 @@ fn test_algo<'r, T, F, I, A>(
         let mut poisson = vec![];
         let mut prefill = (prefiller)(poisson_iter.radius());
         let mut last = None;
+        let mut does_prefill = false;
         loop {
             while let Some(p) = (prefill)(last) {
+                does_prefill = true;
                 match valid {
                     Always => assert!(
                         poisson_iter.stays_legal(p),
@@ -162,11 +164,11 @@ fn test_algo<'r, T, F, I, A>(
             }
             .into_iter(),
         );
-        test_poisson(poisson, radius, poisson_type, algo);
+        test_poisson(poisson, radius, poisson_type, algo, does_prefill);
     }
 }
 
-pub fn test_poisson<F, I, T, A>(poisson: I, radius: F, poisson_type: Type, algo: A)
+pub fn test_poisson<F, I, T, A>(poisson: I, radius: F, poisson_type: Type, algo: A, does_prefill: bool)
 where
     I: Iterator<Item = T>,
     F: Float,
@@ -197,6 +199,15 @@ where
         let remaining = len - (n + 1);
         assert!(l <= remaining, "For the '{:?}' algorithm the lower bound of hint should be smaller than or equal to actual: {} <= {}", algo, l, remaining);
         assert!(h >= remaining, "For the '{:?}' algorithm the upper bound of hint should be larger than or equal to actual: {} >= {}", algo, h, remaining);
+    }
+
+    if !does_prefill {
+        for v in &vecs {
+            for n in 0..T::dimension() {
+                assert!(v[n] >= F::cast(0));
+                assert!(v[n] < F::cast(1));
+            }
+        }
     }
 
     let vecs = match poisson_type {

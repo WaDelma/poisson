@@ -1,6 +1,6 @@
 //! # Poisson-disk distribution generation
 //!
-//! Generates distribution of points in [0, 1]<sup>d</sup> where:
+//! Generates distribution of points in [0, 1)<sup>d</sup> where:
 //!
 //! * For each point there is disk of certain radius which doesn't intersect
 //! with any other disk of other points
@@ -13,7 +13,7 @@
 //!
 //! # Examples
 //!
-//! Generate non-tiling poisson-disk distribution in [0, 1]<sup>2</sup> with disk radius 0.1
+//! Generate non-tiling poisson-disk distribution in [0, 1)<sup>2</sup> with disk radius 0.1
 //! using slower but more accurate algorithm.
 //!
 //! ````rust
@@ -35,7 +35,7 @@
 //! }
 //! ````
 //!
-//! Generate tiling poisson-disk distribution in [0, 1]<sup>3</sup> with approximately 100 samples
+//! Generate tiling poisson-disk distribution in [0, 1)<sup>3</sup> with approximately 100 samples
 //! and relative disk radius 0.9 using faster but less accurate algorithm.
 //!
 //! ````rust
@@ -104,7 +104,7 @@ where
         + NormedSpace<Field = F>
         + Index<usize>
         + IndexMut<usize>
-        + Clone,
+        + Clone
 {
 }
 
