@@ -19,7 +19,7 @@
 
 This is a library for generating n-dimensional [poisson-disk distributions](http://mollyrocket.com/casey/stream_0014.html).    
 
-It generates distribution of points in [0, 1]<sup>d</sup> where:
+It generates distribution of points in [0, 1)<sup>d</sup> where:
 
  * For each point there is disk of certain radius which doesn't intersect
  with any other disk of other points

@@ -65,7 +65,7 @@ where
                 let sample = cur.clone() + random_point_annulus(rng, min, max);
                 if (0..V::dimension())
                     .map(|n| sample[n])
-                    .all(|c| F::cast(0) <= c && c <= F::cast(1))
+                    .all(|c| F::cast(0) <= c && c < F::cast(1))
                 {
                     let index = sample_to_index(&sample, self.grid.side());
                     if self.insert_if_valid(poisson, index, sample.clone()) {
@@ -146,7 +146,7 @@ where
             self.active_samples.push(sample.clone());
             self.grid
                 .get_mut(index)
-                .expect("Because the sample is [0, 1] indexing it should work.")
+                .expect("Because the sample is [0, 1) indexing it should work.")
                 .push(sample);
             self.success += 1;
             true
