@@ -2,6 +2,7 @@ use crate::algorithm::{Algorithm, Creator};
 use crate::utils::*;
 use crate::{Builder, Float, Vector};
 
+use num_traits::{Float as NumFloat};
 use rand::distributions::{Distribution, Standard, Uniform};
 use rand::Rng;
 
@@ -46,7 +47,7 @@ where
             success: 0,
             outside: vec![],
             mantissa_digits: {
-                let (mantissa, _, _) = F::max_value().integer_decode();
+                let (mantissa, _, _) = <F as NumFloat>::max_value().integer_decode();
                 mantissa.count_ones() as usize
             },
         }
@@ -156,10 +157,10 @@ where
         let dim = V::dimension();
         let side = 2usize.pow(self.level as u32);
         let spacing = self.grid.cell() / F::cast(side);
-        let grid_volume = F::cast(self.indices.len()) * spacing.powi(dim as i32);
+        let grid_volume = F::cast(self.indices.len()) * NumFloat::powi(spacing, dim as i32);
         let sphere_volume = sphere_volume(F::cast(2) * poisson.radius, dim as u64);
         let lower = grid_volume / sphere_volume;
-        let mut lower = lower.floor().to_usize().expect(
+        let mut lower = NumFloat::floor(lower).to_usize().expect(
             "Grids volume divided by spheres volume should be always \
              castable to usize.",
         );
@@ -217,7 +218,7 @@ where
     // TODO: This does 4^d checking of points even though it could be done 3^d
     let side = 2usize.pow(level as u32);
     let spacing = grid.cell() / F::cast(side);
-    let sqradius = (F::cast(2) * poisson.radius).powi(2);
+    let sqradius = NumFloat::powi(F::cast(2) * poisson.radius, 2);
     let parent = get_parent(index.clone(), level);
     each_combination(&[0, 1])
         .map(|t| (index.clone() + t) * spacing)

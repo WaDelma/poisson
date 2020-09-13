@@ -90,5 +90,5 @@ where
         Normal => newton(samples, dim),
     };
     let max_radii: F = NumCast::from(MAX_RADII[dim - 2]).unwrap();
-    (max_radii / F::cast(samples)).powf(F::cast(1) / F::cast(dim)) * relative
+    num_traits::Float::powf(max_radii / F::cast(samples), F::cast(1) / F::cast(dim)) * relative
 }

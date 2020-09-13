@@ -32,7 +32,7 @@ as distribution for sampling in rendering or for (re)meshing.
 
 # Usage
 
-Works with nalgebra 0.16 and rand 0.5
+Works with nalgebra 0.22 and rand 0.7
 
 ```rust
 extern crate nalgebra as na;

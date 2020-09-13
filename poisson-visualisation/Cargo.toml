@@ -5,10 +5,10 @@ authors = ["WaDelma <>"]
 edition = "2018"
 
 [dependencies]
-nalgebra = "0.17"
-image = "0.21.0"
-clap = "2.32.0"
-rand = "0.6"
-lab = "0.4"
-fnv = "1.0"
+nalgebra = { version = "0.22", features = [ "alga" ] }
+image = "0.23"
+clap = "2"
+rand = "0.7"
+lab = "0.8"
+fnv = "1"
 poisson = { path = "../poisson" }

@@ -2,10 +2,11 @@ use crate::algorithm::{Algorithm, Creator};
 use crate::utils::*;
 use crate::{Builder, Float, Vector};
 
-use num_traits::NumCast;
+use num_traits::{Float as NumFloat, NumCast};
 
 use rand::distributions::{Distribution, Standard, Uniform};
-use rand::{distributions::StandardNormal, Rng};
+use rand::Rng;
+use rand_distr::StandardNormal;
 
 use sphere::sphere_volume;
 
@@ -100,10 +101,10 @@ where
         // how much sphere can fill it at best case and just figure out how many fills are still needed.
         let dim = V::dimension();
         let spacing = self.grid.cell();
-        let grid_volume = F::cast(upper) * spacing.powi(dim as i32);
+        let grid_volume = F::cast(upper) * NumFloat::powi(spacing, dim as i32);
         let sphere_volume = sphere_volume(F::cast(2) * poisson.radius, dim as u64);
         let lower: F = grid_volume / sphere_volume;
-        let mut lower = lower.floor().to_usize().expect(
+        let mut lower = NumFloat::floor(lower).to_usize().expect(
             "Grids volume divided by spheres volume should be always \
              castable to usize.",
         );
@@ -167,7 +168,7 @@ where
     loop {
         let mut result = V::zero();
         for n in 0..V::dimension() {
-            result[n] = NumCast::from(rand.sample(StandardNormal))
+            result[n] = NumCast::from(rand.sample::<f64, _>(StandardNormal))
                 .expect("The f64 produced by StandardNormal should be always castable to float.");
         }
         let result = result.normalize() * rand.gen() * max;
