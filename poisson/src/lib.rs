@@ -21,7 +21,7 @@
 //! extern crate rand;
 //! extern crate nalgebra as na;
 //!
-//! use rand::FromEntropy;
+//! use rand::SeedableRng;
 //! use rand::rngs::SmallRng;
 //!
 //! use poisson::{Builder, Type, algorithm};
@@ -41,7 +41,7 @@
 //! ````rust
 //! # extern crate nalgebra as na;
 //! # use poisson::{Builder, Type, algorithm};
-//! # use rand::FromEntropy;
+//! # use rand::SeedableRng;
 //! # use rand::rngs::SmallRng;
 //!
 //! fn main() {
@@ -59,14 +59,14 @@ use rand::Rng;
 use num_traits::Float as NumFloat;
 use num_traits::{NumCast, Zero};
 
-use alga::general::AbstractField;
+use alga::general::RealField;
 use alga::linear::{FiniteDimVectorSpace, NormedSpace};
 
 #[macro_use]
 extern crate lazy_static;
 
 use std::marker::PhantomData;
-use std::ops::{AddAssign, DivAssign, Index, IndexMut, MulAssign, SubAssign};
+use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
 
 use crate::algorithm::{Algorithm, Creator};
 use crate::utils::math::calc_radius;
@@ -75,23 +75,20 @@ pub mod algorithm;
 mod utils;
 
 /// Describes what floats are.
-pub trait Float: NumFloat + AbstractField + AddAssign + SubAssign + MulAssign + DivAssign {
+pub trait Float: NumFloat + RealField + AddAssign + SubAssign + MulAssign + DivAssign {
     /// Casts usize to float.
     fn cast(n: usize) -> Self {
         NumCast::from(n).expect("Casting usize to float should always succeed.")
     }
 }
-impl<T> Float for T where T: NumFloat + AbstractField + AddAssign + SubAssign + MulAssign + DivAssign
+impl<T> Float for T where T: NumFloat + RealField + AddAssign + SubAssign + MulAssign + DivAssign
 {}
 
 /// Describes what vectors are.
 pub trait Vector<F>:
     Zero
-    + FiniteDimVectorSpace<Field = F>
-    + NormedSpace<Field = F>
-    + Index<usize>
-    + IndexMut<usize>
-    + Clone
+    + FiniteDimVectorSpace
+    + NormedSpace<RealField = F, ComplexField = F>
 where
     F: Float,
 {
@@ -100,11 +97,8 @@ impl<T, F> Vector<F> for T
 where
     F: Float,
     T: Zero
-        + FiniteDimVectorSpace<Field = F>
-        + NormedSpace<Field = F>
-        + Index<usize>
-        + IndexMut<usize>
-        + Clone
+        + FiniteDimVectorSpace
+        + NormedSpace<RealField = F, ComplexField = F>,
 {
 }
 

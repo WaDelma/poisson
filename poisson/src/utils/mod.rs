@@ -2,7 +2,7 @@
 
 use crate::{Builder, Float, Type, Vector};
 
-use num_traits::NumCast;
+use num_traits::{Float as NumFloat, NumCast};
 
 use rand::distributions::{Distribution, Standard};
 use rand::Rng;
@@ -33,7 +33,7 @@ where
 {
     pub fn new(radius: F, poisson_type: Type) -> Grid<F, V> {
         let dim = F::cast(V::dimension());
-        let cell = (F::cast(2) * radius) / dim.sqrt();
+        let cell = (F::cast(2) * radius) / NumFloat::sqrt(dim);
         let side = (F::cast(1) / cell)
             .to_usize()
             .expect("Expected that dividing 1 by cell width would be legal.");
@@ -129,7 +129,7 @@ fn encoding_decoding_works() {
     let n = nalgebra::Vector2::new(10., 7.);
     assert_eq!(
         n,
-        decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap()
+        decode::<_, nalgebra::Vector2<_>>(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap(),
     );
 }
 
@@ -138,7 +138,7 @@ fn encoding_decoding_at_edge_works() {
     let n = nalgebra::Vector2::new(14., 14.);
     assert_eq!(
         n,
-        decode(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap()
+        decode::<_, nalgebra::Vector2<_>>(encode(&n, 15, Type::Normal).unwrap(), 15).unwrap()
     );
 }
 
@@ -190,7 +190,7 @@ where
 {
     let mut cur = value.clone();
     for n in 0..V::dimension() {
-        cur[n] = (cur[n] * F::cast(side)).floor();
+        cur[n] = NumFloat::floor(cur[n] * F::cast(side));
     }
     cur
 }
@@ -220,7 +220,7 @@ where
     V: Vector<F>,
 {
     let parent = get_parent(index, level);
-    let sqradius = (F::cast(2) * poisson.radius).powi(2);
+    let sqradius = NumFloat::powi(F::cast(2) * poisson.radius, 2);
     // NOTE: This does unnessary checks for corners, but it doesn't affect much in higher dimensions: 5^d vs 5^d - 2d
     each_combination(&[-2, -1, 0, 1, 2])
         .filter_map(|t| grid.get(parent.clone() + t))
@@ -234,7 +234,7 @@ where
     F: Float,
     V: Vector<F>,
 {
-    let sqradius = (F::cast(2) * poisson.radius).powi(2);
+    let sqradius = NumFloat::powi(F::cast(2) * poisson.radius, 2);
     samples
         .iter()
         .all(|t| sqdist(t.clone(), sample.clone(), poisson.poisson_type) >= sqradius)
@@ -250,7 +250,7 @@ where
     match poisson_type {
         Perioditic => each_combination(&[-1, 0, 1])
             .map(|v| (diff.clone() + v).norm_squared())
-            .fold(F::max_value(), |a, b| a.min(b)),
+            .fold(NumFloat::max_value(), |a, b| NumFloat::min(a, b)),
         Normal => diff.norm_squared(),
     }
 }
@@ -262,7 +262,7 @@ where
 {
     let split = 2usize.pow(level as u32);
     for n in 0..V::dimension() {
-        index[n] = (index[n] / F::cast(split)).floor();
+        index[n] = NumFloat::floor(index[n] / F::cast(split));
     }
     index
 }

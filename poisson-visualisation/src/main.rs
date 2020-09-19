@@ -2,7 +2,7 @@ use clap::{App, Arg, ArgMatches, arg_enum, _clap_count_exprs, value_t};
 
 use poisson::{Builder, Type, algorithm::{Bridson, Ebeida}};
 
-use rand::{rngs::SmallRng, FromEntropy, Rng, seq::SliceRandom, SeedableRng};
+use rand::{rngs::SmallRng, Rng, seq::SliceRandom, SeedableRng};
 
 use nalgebra::Vector2;
 
@@ -112,13 +112,12 @@ fn visualise(m: ArgMatches) {
     let mut image = ImageBuffer::new(width, height);
     for p in points {
         let pp = ps.pop().unwrap();
-        let col = Rgb {
-            data: Lab {
+        let col = Rgb(Lab {
                 l: style_rng.gen::<f32>() * 80. + 10.,
                 a: pp.x * 256. - 128.,
                 b: pp.y * 256. - 128.
             }.to_rgb()
-        };
+        );
 
         let x = p.x * width as f32;
         let y = p.y * height as f32;
@@ -150,10 +149,10 @@ fn visualise(m: ArgMatches) {
                 if style == Style::Colorful {
                     image[(xxx, yyy)] = col;
                 } else {
-                    image[(xxx, yyy)] = Rgb { data: [255, 255, 255] };
+                    image[(xxx, yyy)] = Rgb([255, 255, 255]);
                 }
                 if style == Style::Plain && (xx == 0. || yy == 0.) {
-                    image[(xxx, yyy)] = Rgb { data: [255, 0, 0] };
+                    image[(xxx, yyy)] = Rgb([255, 0, 0]);
                 }
             }
         }

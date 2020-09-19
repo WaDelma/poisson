@@ -1,7 +1,7 @@
 use poisson::Type;
 
-use rand::distributions::StandardNormal;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
+use rand_distr::StandardNormal;
 
 extern crate nalgebra as na;
 pub type Vect = na::Vector2<f64>;
